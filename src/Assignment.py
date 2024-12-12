@@ -1,84 +1,38 @@
-import numpy as np
-#import pandas as pd
-import copy # To make deep copies
+from .Data import *
+
 import os
+import seaborn as sns
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
-import seaborn as sns
-
-
-## Define classes
-#Define the following classes:
-#* 'Data': contains
-#    * Number of students
-#    * Number of schools
-#    * Preferences students
-#    * Preferences schools
-#    * Capacities schools
-#    * Names of students
-#    * Names of schools
-#    * File name
-#* 'Assignment': the selection probabilities of the students to the schools
-
-class Data:
-    # Define the initialization of an object from this class
-    def __init__(self, n_stud: int, n_schools: int, pref: list, prior: list, cap:list, ID_stud:list, ID_school:list, file_name:str):
-        self.n_stud = n_stud
-        self.n_schools = n_schools
-        self.pref = copy.deepcopy(pref)
-        self.prior = copy.deepcopy(prior)
-        self.cap = copy.deepcopy(cap)
-        self.ID_stud = copy.deepcopy(ID_stud)
-        self.ID_school = copy.deepcopy(ID_school)
-        self.file_name = file_name
-
-        
-
-    # Choose what is being shown for the command 'print(MyData)', where 'MyData' is an instance of the class 'Data'
-    def __str__(self):
-        s ="The data instance has the following properties: \n"
-        s += f"\n\t{self.n_stud} students.\n\t{self.n_schools} schools. \n\n \tPREFERENCES:\n"
-        for i in range(0,self.n_stud):
-            s+= f"\t{self.ID_stud[i]}\t"
-            for j in range(0, len(self.pref[i])):
-                if len(self.pref[i][j]) >= 2:
-                    s+=f"{{"
-                    for k in range(0, len(self.pref[i][j])):
-                        s+=f"{self.pref[i][j][k]}"
-                        if k < len(self.pref[i][j]) - 1:
-                            s+= f" "
-                    s+=f"}} "
-                else:
-                    s+=f"{self.pref[i][j]} "
-            s +="\n"
-
-        s += f"\n\n \tCAPACITIES & PRIORITIES:\n"
-        for i in range(0,self.n_schools):
-            s+= f"\t{self.ID_school[i]}\t"
-            s+= f"{self.cap[i]}\t"
-            for j in range(0, len(self.prior[i])):
-                if len(self.prior[i][j]) >= 2:
-                    s+=f"{{"
-                    for k in range(0, len(self.prior[i][j])):
-                        s+=f"{self.prior[i][j][k]}"
-                        if k < len(self.prior[i][j]) - 1:
-                            s+= f" "
-                    s+=f"}} "
-                else:
-                    s+=f"{self.prior[i][j]} "
-            s +="\n"
-        return s
-
 
 class Assignment:
-    # This class will contain an assignment
+    """
+    Class Assignment:
+    This class models and manipulates an assignment of students to schools based on preferences and priorities.
+
+    Functions:
+    1. __init__(): Initializes the assignment with provided data and computes preference rankings.
+    2. visualize(): Generates visualizations of the assignment and ranked preferences using heatmaps.
+    3. export_assignment(): Saves the assignment data to a structured CSV file.
+    """
+
     def __init__(self, MyData: Data, p: np.ndarray, label = None):
+        """
+        Initializes the assignment object with the given data, computes a ranked version of the assignment 
+        based on student preferences, and exports the assignment to a CSV file.
+        Arguments:
+        - MyData (Data): The Data object containing student and school information.
+        - p (np.ndarray): The assignment matrix indicating allocations of students to schools.
+        - label (str, optional): A label for the assignment, used for file naming and visualization. Defaults to None.
+        """
         # self.file_name = MyData.file_name[:-4] 
             # Use this when importing .csv files, for example
         self.file_name = MyData.file_name
         self.MyData = copy.deepcopy(MyData)
         self.assignment = copy.deepcopy(p)
         self.label = label
+        if label == None:
+            self.label = ""
         
         names = []
         for i in range(0,MyData.n_stud):
@@ -91,7 +45,8 @@ class Assignment:
             for j in range(0, len(MyData.pref[i])):
                 
                 # Convert pref[i][k] (school ID as string) to column index
-                col_index = int(MyData.pref[i][j]) - 1
+                #col_index = int(MyData.pref[i][j]) - 1
+                col_index = MyData.ID_school.index(MyData.pref[i][j])
                 self.assignment_ranked[i][j] = self.assignment[i][col_index]
                 counter += 1
         #self.assignment_ranked = pd.DataFrame(ranked, columns = names)
@@ -102,6 +57,12 @@ class Assignment:
     
     # Visualize the assignment in different ways
     def visualize(self):
+        """
+        Creates two heatmaps of the assignments: 
+        - One that just depicts the assignment itself
+        - One where the schools are ranked in decreasing order of preference for each student
+        """ 
+
         # To export the figures, check if the correct folder exists:
         if os.path.exists("Results") == False:
             # If not, create folder
@@ -119,14 +80,14 @@ class Assignment:
         
         path = "Results/Visualisations/"
         # The assignment itself
-        sns.set(rc = {'figure.figsize':(MyData.n_stud,MyData.n_schools/1.5)})
+        sns.set(rc = {'figure.figsize':(self.MyData.n_stud,self.MyData.n_schools/1.5)})
         
         # Create a custom colormap (to show negative values red)
         colors = ["red", "white", "blue"]  # Red for negatives, white for 0, blue for positives
         custom_cmap = LinearSegmentedColormap.from_list("CustomMap", colors)
         
         # Create the heatmap
-        p = sns.heatmap(self.assignment, cmap = custom_cmap, center=0, annot=True, yticklabels = MyData.ID_stud, xticklabels = MyData.ID_school)
+        p = sns.heatmap(self.assignment, cmap = custom_cmap, center=0, annot=True, yticklabels = self.MyData.ID_stud, xticklabels = self.MyData.ID_school)
         p.set_xlabel("Students", fontsize = 15)
         p.set_ylabel("Schools", fontsize = 15)
         name = path + self.file_name + "/" + self.label + ".pdf"
@@ -141,8 +102,8 @@ class Assignment:
         custom_cmap2 = LinearSegmentedColormap.from_list("CustomMap", colors)
         
         # Create the heatmap
-        sns.set(rc = {'figure.figsize':(MyData.n_stud,MyData.n_schools/1.5)})
-        p = sns.heatmap(self.assignment_ranked, cmap = custom_cmap2, center=0, annot=True, yticklabels = MyData.ID_stud, xticklabels = range(1,MyData.n_schools + 1))
+        sns.set(rc = {'figure.figsize':(self.MyData.n_stud,self.MyData.n_schools/1.5)})
+        p = sns.heatmap(self.assignment_ranked, cmap = custom_cmap2, center=0, annot=True, yticklabels = self.MyData.ID_stud, xticklabels = range(1,self.MyData.n_schools + 1))
         p.set_xlabel("Preference", fontsize = 15)
         p.set_ylabel("Students", fontsize = 15)
         name = path + self.file_name + "/" + self.label + "_Ranked.pdf"
@@ -171,7 +132,7 @@ class Assignment:
         np.savetxt(name, self.assignment, delimiter=",")
         
     # Choose what is being shown for the command 'print(Sol)', where 'Sol' is an instance of the class 'Assignment'
-    def __str__(self):
+    #def __str__(self):
         
-        return s
+    #    return s
         
