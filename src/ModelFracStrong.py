@@ -13,7 +13,7 @@ from pulp import *
 # To check which solvers available on computer:
 # print(pl.listSolvers(onlyAvailable=True))
 
-class Model: 
+class ModelFracStrong: 
     """
     Contains two methods:
         __init__: initializes the model, and the solver environment
@@ -25,6 +25,7 @@ class Model:
     # Used this example as a template for Pulp: https://coin-or.github.io/pulp/CaseStudies/a_sudoku_problem.html
     
     def __init__(self, MyData: Data, p: Assignment, print_out: bool, nr_matchings = -1):
+        print("TEST")
         """
         Initialize an instance of Model.
 
@@ -64,25 +65,9 @@ class Model:
                 # Convert pref[i][k] (school ID as string) to column index
                 col_index = MyData.ID_school.index(MyData.pref[i][j])
                 self.PAIRS.append((i,col_index))   
-        
-        # M[k][i][j] = 1 if student i is assigned to school j in matching k, and 0 otherwise
-        self.M = LpVariable.dicts("M", [(k, i, j) for k in self.N_MATCH for i, j in self.PAIRS], cat="Binary")
-
-        # Auxiliary variables to avoid non-linearity
-        self.z = LpVariable.dicts("z", [(k, i, j) for k in self.N_MATCH for (i, j) in self.PAIRS], 0, 1)
-
-        # Rename M and z
-        for k, i, j in self.M:
-            student_name = self.MyData.ID_stud[i]
-            school_name = self.MyData.ID_school[j]
-            self.M[k, i, j].name = f"M_{k}_{student_name}_{school_name}"
-            self.z[k, i, j].name = f"z_{k}_{student_name}_{school_name}"
 
         # Q[i][j] is the new probability with which student i is assigned to school j, lies between 0 and 1
         self.Q = LpVariable.dicts("q", self.PAIRS, 0, 1) 
-    
-        # w[k] is the weight of matching k in the decomposition
-        self.w = LpVariable.dicts("w", self.N_MATCH, 0, 1)
 
         #### OBJECTIVE FUNCTION ####
             # Done separately in other functions (see function Solve)
@@ -91,43 +76,40 @@ class Model:
         #### CONSTRAINTS ####
         # Other constraints defined for specific models in functions below (see function Solve)
 
-        # Stability
-        for k in self.N_MATCH:
-            for i in self.STUD:
-                for j in range(len(self.MyData.pref_index[i])):
-                    current_school = self.MyData.pref_index[i][j]
-                    lin = LpAffineExpression()
+        # Fractional Strong Stability
+        for i in self.STUD:
+            for j in range(len(self.MyData.pref_index[i])):
+                current_school = self.MyData.pref_index[i][j]
+                lin = LpAffineExpression()
 
-                    lin += self.MyData.cap[current_school] * self.M[k, i, current_school]
+                lin += self.MyData.cap[current_school] * self.Q[i, current_school]
 
-                    # Add all schools that are at least as preferred as the j-ranked school by student i
-                    for l in range(j):
-                        lin += self.MyData.cap[current_school] * self.M[k,i,self.MyData.pref_index[i][l]]
+                # Add all schools that are at least as preferred as the j-ranked school by student i
+                for l in range(j):
+                    lin += self.MyData.cap[current_school] * self.Q[i,self.MyData.pref_index[i][l]]
 
 
-                    # Add terms based on priorities
-                    prior_current = self.MyData.rank_prior[current_school][i]
-                    for s in self.STUD:
-                        if s != i:
-                            # If current_school ranks student s higher than student i
-                            if self.MyData.rank_prior[current_school][s] <= self.MyData.rank_prior[current_school][i]:
-                                if (s, current_school) in self.PAIRS:
-                                    lin += self.M[k,s,current_school]
+                # Add terms based on priorities
+                prior_current = self.MyData.rank_prior[current_school][i]
+                for s in self.STUD:
+                    if s != i:
+                        # If current_school ranks student s higher than student i
+                        if self.MyData.rank_prior[current_school][s] <= self.MyData.rank_prior[current_school][i]:
+                            if (s, current_school) in self.PAIRS:
+                                lin += self.Q[s,current_school]
 
-                    # Add to model:
-                    name = "STAB_" + str(k) + "_" + str(self.MyData.ID_stud[i]) + "_" + str(self.MyData.ID_school[current_school]) 
-                    self.model += (lin >= self.MyData.cap[current_school], name) 
+                # Add to model:
+                name = "STAB_" + "_" + str(self.MyData.ID_stud[i]) + "_" + str(self.MyData.ID_school[current_school]) 
+                self.model += (lin >= self.MyData.cap[current_school], name) 
 
         
         # Each student at most assigned to one school
-        for l in self.N_MATCH:
-            for i in self.STUD:
-                self.model += lpSum([self.M[l,i,j] for j in self.SCHOOLS if (i,j) in self.PAIRS]) <= 1, f"LESS_ONE_{l,i}"
+        for i in self.STUD:
+            self.model += lpSum([self.Q[i,j] for j in self.SCHOOLS if (i,j) in self.PAIRS]) <= 1, f"LESS_ONE_{i}"
 
         # Capacities schools respected
-        for l in self.N_MATCH:
-            for j in self.SCHOOLS:
-                self.model += lpSum([self.M[l,i,j] for i in self.STUD if (i,j) in self.PAIRS]) <= self.MyData.cap[j], f"LESS_CAP_{l,j}"
+        for j in self.SCHOOLS:
+            self.model += lpSum([self.Q[i,j] for i in self.STUD if (i,j) in self.PAIRS]) <= self.MyData.cap[j], f"LESS_CAP_{j}"
                                     
 
     def Solve(self, obj: str, solver: str, print_out: bool):
@@ -155,7 +137,7 @@ class Model:
            raise ValueError(f"Invalid value: '{solver}'. Allowed values are: {solver_list}")
 
         # Valid values for 'obj'
-        obj_list = ["IMPR_RANK", "STABLE"]
+        obj_list = ["IMPR_RANK"]
         if obj not in obj_list:
            raise ValueError(f"Invalid value: '{obj}'. Allowed values are: {obj_list}")
 
@@ -164,9 +146,6 @@ class Model:
         # Set the objective function
         if obj == "IMPR_RANK":
             self.Improve_rank(print_out)
-        
-        elif obj == "STABLE":
-            self.Max_Stable_Fraction(print_out)
 
         self.model.writeLP("TestFormulation.lp")
 
@@ -186,16 +165,6 @@ class Model:
 
         for (i,j) in self.PAIRS:
             self.Xassignment.assignment[i,j] = self.Q[i,j].varValue
-
-        # Store decomposition
-        self.Xdecomp = [] # Matchings in the found decomposition
-        self.Xdecomp_coeff = [] # Weights of these matchings
-
-        for l in self.N_MATCH:
-            self.Xdecomp.append(np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools)))
-            self.Xdecomp_coeff.append(self.w[l].varValue)
-            for (i,j) in self.PAIRS:
-                self.Xdecomp[-1][i,j] = self.M[l,i,j].varValue
                 
         return self.Xassignment
 
@@ -221,27 +190,6 @@ class Model:
             lin += (self.Q[i,j] * (self.MyData.rank_pref[i,j] + 1)) / self.MyData.n_stud # + 1 because the indexing starts from zero
         self.model += lin
 
-        # Define q based on matchings in decomposition
-            # Where z is an auxiliary variable to avoid non-linearities
-        for l in self.N_MATCH:
-            for (i,j) in self.PAIRS:
-                self.model += self.z[l, i, j] - self.w[l] <= 0,f"z_w{l,i,j}" 
-
-        for l in self.N_MATCH:
-            for (i,j) in self.PAIRS:
-                self.model += self.z[l, i, j] - self.M[l, i, j] <= 0,f"z_M_{l, i, j}"
-
-        for l in self.N_MATCH:
-            for (i,j) in self.PAIRS:
-                self.model += self.z[l, i, j] + (1 - self.M[l, i, j]) - self.w[l]  >= 0,f"z_w_M_{l, i, j}"
-                # Maybe these constraints are redundant because of the objective function
-
-        for (i,j) in self.PAIRS:
-            self.model += lpSum([self.z[l, i, j] for l in self.N_MATCH]) == self.Q[i,j], f"z_Q_{i, j}"
-
-        # Ensure weights sum up to one
-        self.model += lpSum([self.w[l] for l in self.N_MATCH]) == 1, f"SUM_TO_ONE"
-
         # First-order stochastic dominance
         for i in self.STUD:
             for j in range(len(self.MyData.pref[i])):
@@ -252,36 +200,6 @@ class Model:
                     lin -= self.p.assignment[i,pref_school]
                 name = "FOSD_" +  str(self.MyData.ID_stud[i]) + "_" + str(j)
                 self.model += (lin >= 0, name)
-
-
-    def Max_Stable_Fraction(self, print_out: str):
-        # Objective function
-        obj = LpAffineExpression()
-        for l in self.N_MATCH:
-            obj += self.w[l] 
-        self.model += obj
-        self.model.sense = LpMaximize
-
-        # Constraints to ensure that decomposition is at least equal to p (element-wise)
-            # Where z is an auxiliary variable to avoid non-linearities
-        for l in self.N_MATCH:
-            for (i,j) in self.PAIRS:
-                self.model += self.z[l, i, j] - self.w[l] <= 0,f"z_w{l,i,j}" 
-
-        for l in self.N_MATCH:
-            for (i,j) in self.PAIRS:
-                self.model += self.z[l, i, j] - self.M[l, i, j] <= 0,f"z_M_{l, i, j}"
-
-        for l in self.N_MATCH:
-            for (i,j) in self.PAIRS:
-                self.model += self.z[l, i, j] + (1 - self.M[l, i, j]) - self.w[l]  >= 0,f"z_w_M_{l, i, j}"
-                # Maybe these constraints are redundant because of the objective function
-
-        for (i,j) in self.PAIRS:
-            self.model += lpSum([self.z[l, i, j] for l in self.N_MATCH]) == self.Q[i,j], f"z_Q_{i, j}"
-
-        for (i,j) in self.PAIRS:
-            self.model += lpSum([self.z[l, i, j] for l in self.N_MATCH]) <= self.p.assignment[i,j], f"z_p_{i, j}"
 
 
     def print_solution(self):
@@ -297,20 +215,6 @@ class Model:
             s+=f"\n"
         s+=f"\n"
 
-        s+= "The matchings with positive weights are:\n"
-
-        for l in self.N_MATCH:
-            if self.Xdecomp_coeff[l] > 0:
-                s+=f"\t w[{l}] = {self.Xdecomp_coeff[l]}\n"
-                for i in self.STUD:
-                    s+=f"\t\t"
-                    for j in self.SCHOOLS:
-                        if self.Xdecomp[l][i,j] == 1:
-                            s+=f"1\t"
-                        else:
-                            s+= f"0\t"
-                    s+=f"\n"
-                s+=f"\n"
         print(s)
 
         
