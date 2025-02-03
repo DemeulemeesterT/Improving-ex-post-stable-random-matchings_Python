@@ -111,7 +111,24 @@ def generate_data(n_students: int, n_schools: int, parameters: DataGenParam, nam
         group2 = permutation[group_size:2 * group_size]
         group3 = permutation[2 * group_size:]
 
-        priorities.append([tuple(group1), tuple(group2), tuple(group3)])
+        if len(group1) == 1:
+            tuple_group1 = group1
+        else:
+            tuple_group1 = tuple(group1)
+
+        if len(group2) == 1:
+            tuple_group2 = group2
+        else:
+            tuple_group2 = tuple(group2)
+
+        if len(group3) == 1:
+            tuple_group3 = group3
+        else:
+            tuple_group3 = tuple(group3)
+
+        priorities.append([tuple_group1, tuple_group2, tuple_group3])
+
+        #priorities.append([tuple(group1), tuple(group2), tuple(group3)])
     
     # Optionally print data
     if print_data:

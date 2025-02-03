@@ -68,6 +68,10 @@ def DA_STB(MyData: Data, n_iter: int, seed = 123456789, print_out = False):
     # For each of the permutations, break ties in the preferences and run Gale-Shapley algorithm on them
     M_sum = np.zeros(shape=(MyData.n_stud, MyData.n_schools)) # Will contain the final random_assignment
 
+    # Keep track of the generated matchings in a set. 
+    # Only matchings that were not in the set yet will be added.
+    M_set = set()
+
     for p in tqdm(permut):
         prior_new = [] 
         for j in range(len(MyData.prior)):
@@ -90,13 +94,18 @@ def DA_STB(MyData: Data, n_iter: int, seed = 123456789, print_out = False):
                 
         # Compute DA matching for the new priorities after tie-breaking
         Data_new_prior = Data(MyData.n_stud, MyData.n_schools, MyData.pref, prior_new, MyData.cap, MyData.ID_stud, MyData.ID_school, MyData.file_name)
-        M_sum = M_sum + gale_shapley(Data_new_prior)            
+        M_computed = gale_shapley(Data_new_prior)
+
+        M_set.add(tuple(map(tuple, M_computed))) # Add found matching to the set of matchings
+            # You have to add it as a tuple of tuples, because otherwise Python cannot check whether it was already in the set.
+            # If later you want to use it as a numpy array again, just use np.array(tuple_of_tuples)
+        M_sum = M_sum + M_computed            
         
     M_sum = M_sum / n_iter
 
     # Create an instance of the Assignment class
     label = MyData.file_name + "_" + "DA_STB" + str(n_iter)
-    A = Assignment(MyData, M_sum, label)
+    A = Assignment(MyData, M_sum, M_set, label)
 
     return A
 

@@ -16,7 +16,7 @@ class Assignment:
     3. export_assignment(): Saves the assignment data to a structured CSV file.
     """
 
-    def __init__(self, MyData: Data, p: np.ndarray, label = None):
+    def __init__(self, MyData: Data, p: np.ndarray, M_set_in = None, label = None):
         """
         Initializes the assignment object with the given data, computes a ranked version of the assignment 
         based on student preferences, and exports the assignment to a CSV file.
@@ -24,12 +24,14 @@ class Assignment:
         - MyData (Data): The Data object containing student and school information.
         - p (np.ndarray): The assignment matrix indicating allocations of students to schools.
         - label (str, optional): A label for the assignment, used for file naming and visualization. Defaults to None.
+        - M: the set of generated matchings (if any) to obtain the assignment
         """
         # self.file_name = MyData.file_name[:-4] 
             # Use this when importing .csv files, for example
         self.file_name = MyData.file_name
         self.MyData = copy.deepcopy(MyData)
         self.assignment = copy.deepcopy(p)
+        self.M_set = copy.deepcopy(M_set_in)
         self.label = label
         if label == None:
             self.label = ""
