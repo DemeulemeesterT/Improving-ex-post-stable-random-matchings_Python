@@ -32,13 +32,13 @@ def generate_data(n_students: int, n_schools: int, parameters: DataGenParam, nam
     Returns:
     - An object of the class Data
     """
-    if seed != 123456789:
-        # Use seed in argument
-        rng = default_rng(seed)
-    else:
+    if seed == 123456789:
         # Generate random seed 
         # Create a seed based on the current time
         seed = int(time.time() * 1000) % (2**32)  # Modulo 2^32 to ensure it's a valid seed
+
+    rng = default_rng(seed)  # Always define rng
+
 
     # Initialize arrays
     students = list(range(n_students))
@@ -103,7 +103,7 @@ def generate_data(n_students: int, n_schools: int, parameters: DataGenParam, nam
 
     priorities = []
     for j in range(n_schools):
-        permutation = np.random.permutation(students)
+        permutation = rng.permutation(students)
 
         # Split the list into three roughly equal groups
         group_size = len(permutation) // 3
