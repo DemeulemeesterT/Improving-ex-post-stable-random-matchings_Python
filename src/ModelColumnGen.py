@@ -39,7 +39,9 @@ class ModelColumnGen:
         self.p = copy.deepcopy(p)
 
         # Create the pulp model
-        self.model = LpProblem("Improving_ex_post_stable_matchings", LpMinimize)
+        # 'self.master' refers to master problem
+        # 'self.pricing' will refer to pricing problem
+        self.master = LpProblem("Improving_ex_post_stable_matchings", LpMinimize)
 
         # Create variables to store the solution in
         self.Xdecomp = [] # Matchings in the found decomposition
@@ -88,7 +90,7 @@ class ModelColumnGen:
             # Every time you update it, you should add it to the model again
                 # using a code like:
                 # self.model.setObjective(self.model.objective+obj_coeff*self.w[m])
-        self.model += LpAffineExpression()
+        self.master += LpAffineExpression()
             
         #### CONSTRAINTS ####
         # Other constraints defined for specific models in functions below (see function Solve)
@@ -113,7 +115,7 @@ class ModelColumnGen:
 
         # Add all these contraints to the model
         for c in self.constraints.values():
-            self.model += c
+            self.master += c
 
         #### DECISION VARIABLES ####
         self.w = []
@@ -151,7 +153,7 @@ class ModelColumnGen:
                 obj_coeff += self.M[m,i,j]*(self.MyData.rank_pref[i,j]+ 1) / self.MyData.n_stud # + 1 because the indexing starts from zero
 
             # Add this variable to the model with the correct objective coefficient
-            self.model.setObjective(self.model.objective+obj_coeff*self.w[m])
+            self.master.setObjective(self.master.objective+obj_coeff*self.w[m])
 
 
 
@@ -162,14 +164,147 @@ class ModelColumnGen:
         #self.w = LpVariable("w", self.nr_matchings, lowBound=0, upBound=1, e={self.constraints["Sum_to_one"]:1} )
 
         #self.w = LpVariable("w", self.nr_matchings, e={self.constraints["Sum_to_one"]:1} )
-        #self.model += 2*self.w
+        #self.master += 2*self.w
 
         
         #self.vars += self.w()
         #for m in self.N_MATCH:
         #    for c in range(1,len(self.constraints)):
-        #        self.model.addVariableToConstraints(self.w[m], {self.constraints[c], 1})
+        #        self.master.addVariableToConstraints(self.w[m], {self.constraints[c], 1})
 
-        self.model.writeLP("TestColumnFormulation.lp")
+        self.master.writeLP("TestColumnFormulation.lp")
+        
+        
+        
+        
+    def Solve(self, stab_constr: str, solver: str, print_out: bool):
+        """
+        Solves the formulation using column generation.
+        Returns an instance from the Assignment class.
 
-                                    
+        Args:
+            stab_constr (str): controls which type of stability constraints are used.
+            solver (str): controls which solver is used. See options through following commands:
+                solver_list = pl.listSolvers(onlyAvailable=True)
+                print(solver_list)
+            print_out (bool): boolean that controls which output is printed.
+        """
+        
+        # Check that strings-arguments are valid
+
+        # Valid values for 'solver'
+        solver_list = pl.listSolvers(onlyAvailable=True)
+        if solver not in solver_list:
+           raise ValueError(f"Invalid value: '{solver}'. Allowed values are: {solver_list}")
+
+        # Valid values for 'stab_constr'
+        stab_list = ["TRAD"]
+        if stab_constr not in stab_list:
+           raise ValueError(f"Invalid value: '{stab_constr}'. Allowed values are: {stab_list}")
+
+
+        # Create Pulp model for pricing problem
+        self.pricing = LpProblem("Pricing problem", LpMinimize)
+        
+        self.constraints_pricing = {}
+        
+        # Each student at most one school
+        
+        # Capacities schools respected
+        
+        # Stability
+        if stab_constr == "TRAD":
+            print("STAB_TRAD")
+        
+        # Run the column generation procedure
+        optimal = False
+        
+        while (optimal == False):
+            #### SOLVE MASTER ####
+            # Create two empty arrays to store objective values of master and pricing problem
+            self.obj_master = []
+            self.obj_pricing = []
+            
+            # String can't be used as the argument in solve method, so convert it like this:
+            solver_function = globals()[solver]  # Retrieves the GUROBI function or class
+            
+            # Solve the formulation
+            self.master.solve(solver_function())
+            #self.model.solve(GUROBI_CMD(keepFiles=True, msg=True, options=[("IISFind", 1)]))
+            
+            # Get objective value master problem
+            self.obj_master.append(self.master.objective.value())
+            
+            #### SOLVE PRICING ####
+            # Get dual variables
+            duals = {}
+            
+            duals["Sum_to_one"] = self.master.constraints["Sum_to_one"].pi
+
+            for i in self.STUD:
+                for j in range(len(self.MyData.pref[i])):
+                    school_name = self.MyData.pref_index[i][j]
+                    name = "Mu_" +  str(self.MyData.ID_stud[i]) + "_" + str(school_name)
+                    duals[name]=self.master.constraints[name].pi
+
+            # Modify objective function pricing problem
+            pricing_obj = LpAffineExpression()
+            for i in self.STUD:
+                for j in range(len(self.MyData.pref[i])):
+                    school_name = self.MyData.pref_index[i][j]
+                    for k in range(j+1):
+                        pref_school = self.MyData.pref_index[i][k]
+                        name = "Mu" +  str(self.MyData.ID_stud[i]) + "_" + str(pref_school)
+                        pricing_obj += self.M_pricing[i,pref_school] * duals[name]
+                    
+                    pricing_obj -= self.M_pricing[i,school_name] * (self.MyData.rank_pref[i,school_name]+ 1) / self.MyData.n_stud # + 1 because the indexing starts from zero
+            pricing_obj += duals['Sum_to_one']
+            self.pricing.setObjective(pricing_obj)
+            
+            if print_out:
+                self.pricing.writeLP("PricingProblem.lp")
+            
+                
+            
+            # Solve modified pricing problem
+            self.pricing.solve(solver_function())
+
+            
+            obj_pricing_var = self.pricing.objective.value()
+            self.obj_pricing.append(obj_pricing_var)
+            
+            if obj_pricing_var < 0:
+                # The solution of the master problem is not optimal over all weakly stable matchings
+                
+                # Add the matching found by the pricing problem to the master problem
+                print('Add found matching')
+            
+            else:
+                # Optimal solution of master problem!
+                print("Optimal solution found!")
+                optimal = True
+
+                # Save the final solution
+                # Create variables to store the solution in
+                self.Xdecomp = [] # Matchings in the found decomposition
+                self.Xdecomp_coeff = [] # Weights of these matchings
+                zero = np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools))
+                self.Xassignment = Assignment(self.MyData, zero) # Contains the final assignment found by the model
+                
+                # Make sure assignment is empty in Xassignment
+                self.Xassignment.assignment = np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools))
+
+                # Store decomposition
+                self.Xdecomp = [] # Matchings in the found decomposition
+                self.Xdecomp_coeff = [] # Weights of these matchings
+
+                for l in self.N_MATCH:
+                    self.Xdecomp.append(np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools)))
+                    self.Xdecomp_coeff.append(self.w[l].varValue)
+                    for (i,j) in self.PAIRS:
+                        self.Xdecomp[-1][i,j] = self.M[l,i,j]
+                        self.Xassignment.assignment[i,j] += self.w[l].varValue * self.M[l,i,j]
+                        
+                return self.Xassignment
+
+            optimal = True
