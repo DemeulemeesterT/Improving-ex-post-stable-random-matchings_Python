@@ -85,12 +85,17 @@ class ModelColumnGen:
             school_name = self.MyData.ID_school[j]
             self.labels[k, i, j] = f"M_{k}_{student_name}_{school_name}"
 
+
+
         #### OBJECTIVE FUNCTION ####
         # Add an empty objective function
             # Every time you update it, you should add it to the model again
                 # using a code like:
                 # self.model.setObjective(self.model.objective+obj_coeff*self.w[m])
         self.master += LpAffineExpression()
+            
+            
+            
             
         #### CONSTRAINTS ####
         # Other constraints defined for specific models in functions below (see function Solve)
@@ -117,6 +122,9 @@ class ModelColumnGen:
         for c in self.constraints.values():
             self.master += c
 
+
+
+
         #### DECISION VARIABLES ####
         self.w = []
         print(self.nr_matchings)
@@ -132,6 +140,7 @@ class ModelColumnGen:
                     name = "FOSD_" +  str(self.MyData.ID_stud[i]) + "_" + str(school_name)
                     
                     # Initialize the coefficient if it doesn't exist
+                    # (needed because we use +=, and not =)
                     if name not in coeff:
                         coeff[name] = 0
                     
@@ -203,21 +212,77 @@ class ModelColumnGen:
            raise ValueError(f"Invalid value: '{stab_constr}'. Allowed values are: {stab_list}")
 
 
+
+        #### PRICING PROBLEM ####
         # Create Pulp model for pricing problem
         self.pricing = LpProblem("Pricing problem", LpMinimize)
         
+        
+        
+        
+        ### CONSTRAINTS PRICING ###
         self.constraints_pricing = {}
         
         # Each student at most one school
-        
+        for i in self.STUD:
+            name = "LESS_ONE_" + str(i)
+            self.constraints_pricing[name] = LpConstraintVar(name, LpConstraintLE, 1)
+
         # Capacities schools respected
-        
+        for j in self.SCHOOLS:
+            name = "LESS_CAP_" + str(j)
+            self.constraints_pricing[name] = LpConstraintVar(name, LpConstraintLE, self.MyData.cap[j])
+    
         # Stability
         if stab_constr == "TRAD":
-            print("STAB_TRAD")
+            for k in self.N_MATCH:
+                for i in self.STUD:
+                    for j in range(len(self.MyData.pref_index[i])):                
+                            current_school = self.MyData.pref_index[i][j]
+                            name = "STAB_" + str(k) + "_" + str(self.MyData.ID_stud[i]) + "_" + str(self.MyData.ID_school[current_school]) 
+                            self.constraints_pricing[name] = LpConstraintVar(name, LpConstraintGE, self.MyData.cap[current_school])
+
+        # Add all these contraints to the pricing model
+        for c in self.constraints_pricing.values():
+            self.pricing += c
+        
+        
+        
+        
+        ### DECISION VARIABLES PRICING ###
+        # self.K = matching found in pricing problem
+        self.K = {}
+    
+        
+        for (i,j) in self.PAIRS:
+            # First, determine coefficients of this variable in the constraints
+            coeff_pricing = {}
+            # Each student at most assigned to one school
+            name = "LESS_ONE_" + str(i)
+            coeff_pricing[name] = 1
+ 
+            # Capacities schools respected
+            name = "LESS_CAP_" + str(j)
+            coeff_pricing[name] = 1
+
+            print(i,j)
+            print("Coeff_pricing", coeff_pricing)
+            # Then, create a dictionary for `e` that maps constraints to their coefficients
+            e_dict = {}
+            e_dict = {self.constraints_pricing[key]: coeff_pricing[key] for key in coeff_pricing if coeff_pricing[key] > 0}
+
+            print("e_dict", e_dict)
+            student_name = self.MyData.ID_stud[i]
+            school_name = self.MyData.ID_school[j]
+            name_K = 'M_' + str(student_name) + ',' + str(school_name)
+            self.K[i,j] = LpVariable(name_K, lowBound=0, upBound=1, cat = LpBinary, e=e_dict)
+
+        
         
         # Run the column generation procedure
         optimal = False
+        
+        self.pricing.writeLP("PricingProblem.lp")
         
         while (optimal == False):
             #### SOLVE MASTER ####
@@ -244,8 +309,10 @@ class ModelColumnGen:
             for i in self.STUD:
                 for j in range(len(self.MyData.pref[i])):
                     school_name = self.MyData.pref_index[i][j]
-                    name = "Mu_" +  str(self.MyData.ID_stud[i]) + "_" + str(school_name)
-                    duals[name]=self.master.constraints[name].pi
+                    name_duals = "Mu_" +  str(self.MyData.ID_stud[i]) + "_" + str(school_name)
+                    name_constr = "FOSD_" +  str(self.MyData.ID_stud[i]) + "_" + str(school_name)
+                        
+                    duals[name_duals]=self.master.constraints[name_constr].pi
 
             # Modify objective function pricing problem
             pricing_obj = LpAffineExpression()
