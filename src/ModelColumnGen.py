@@ -235,12 +235,11 @@ class ModelColumnGen:
     
         # Stability
         if stab_constr == "TRAD":
-            for k in self.N_MATCH:
-                for i in self.STUD:
-                    for j in range(len(self.MyData.pref_index[i])):                
-                            current_school = self.MyData.pref_index[i][j]
-                            name = "STAB_" + str(k) + "_" + str(self.MyData.ID_stud[i]) + "_" + str(self.MyData.ID_school[current_school]) 
-                            self.constraints_pricing[name] = LpConstraintVar(name, LpConstraintGE, self.MyData.cap[current_school])
+            for i in self.STUD:
+                for j in range(len(self.MyData.pref_index[i])):                
+                        current_school = self.MyData.pref_index[i][j]
+                        name = "STAB_" + str(self.MyData.ID_stud[i]) + "_" + str(self.MyData.ID_school[current_school]) 
+                        self.constraints_pricing[name] = LpConstraintVar(name, LpConstraintGE, self.MyData.cap[current_school])
 
         # Add all these contraints to the pricing model
         for c in self.constraints_pricing.values():
@@ -250,13 +249,20 @@ class ModelColumnGen:
         
         
         ### DECISION VARIABLES PRICING ###
-        # self.K = matching found in pricing problem
-        self.K = {}
+        # self.M_pricing = matching found in pricing problem
+        self.M_pricing = {}
     
-        
+        print(self.PAIRS)
         for (i,j) in self.PAIRS:
             # First, determine coefficients of this variable in the constraints
             coeff_pricing = {}
+            
+            # Initialize the coefficients to zero for all constraints 
+            # (We won't have to initialize them one by one later then)
+            print(self.constraints_pricing)
+            for name in self.constraints_pricing:
+                coeff_pricing[name] = 0     
+            
             # Each student at most assigned to one school
             name = "LESS_ONE_" + str(i)
             coeff_pricing[name] = 1
@@ -264,18 +270,46 @@ class ModelColumnGen:
             # Capacities schools respected
             name = "LESS_CAP_" + str(j)
             coeff_pricing[name] = 1
+         
+            # Stability
+            if stab_constr == "TRAD":                            
+                ### Add this variable to constraint to enforce stability corresponding to (i,j)
+                #name_1 = "STAB_" + str(self.MyData.ID_stud[i]) + "_" + str(self.MyData.ID_school[j]) 
+                    
+                #coeff_pricing[name_1] += self.MyData.cap[j]
+                
+                
+                ### Add variable to constraints (i,k) where j has a higher preference than k
+                # First find rank of j in preference list i
+                rank_j = self.MyData.rank_pref[i,j]
+                #print('i,j,rank pref', i,j,rank_j)
+                for k in range(int(rank_j), len(self.MyData.pref_index[i])): # Go over all weakly less preferred schools
+                    current_school = self.MyData.pref_index[i][k]
+                    name_2 = "STAB_" + str(self.MyData.ID_stud[i]) + "_" + str(self.MyData.ID_school[current_school]) 
+                    coeff_pricing[name_2] += self.MyData.cap[current_school]
+                
+                
+                
+                # Add variable to constraints (s,j) where i has a higher priority than s on school j
+                for s in self.STUD:
+                    if s!= i:
+                        if (s,j) in self.PAIRS: # Check whether s prefers j to outside option
+                            #print('i,j,rank prior, s, rank_prior_s', i,j,self.MyData.rank_prior[j][i], s, self.MyData.rank_prior[j][s])
+                            if self.MyData.rank_prior[j][s] >= self.MyData.rank_prior[j][i]:
+                                print("i,s,j", i, s, j)
+                                name_3 = "STAB_" + str(self.MyData.ID_stud[s]) + "_" + str(self.MyData.ID_school[j]) 
+                                coeff_pricing[name_3] += 1           
+                
 
-            print(i,j)
-            print("Coeff_pricing", coeff_pricing)
             # Then, create a dictionary for `e` that maps constraints to their coefficients
             e_dict = {}
             e_dict = {self.constraints_pricing[key]: coeff_pricing[key] for key in coeff_pricing if coeff_pricing[key] > 0}
 
-            print("e_dict", e_dict)
+
             student_name = self.MyData.ID_stud[i]
             school_name = self.MyData.ID_school[j]
-            name_K = 'M_' + str(student_name) + ',' + str(school_name)
-            self.K[i,j] = LpVariable(name_K, lowBound=0, upBound=1, cat = LpBinary, e=e_dict)
+            name_M_pricing = 'M_' + str(student_name) + ',' + str(school_name)
+            self.M_pricing[i,j] = LpVariable(name_M_pricing, lowBound=0, upBound=1, cat = LpBinary, e=e_dict)
 
         
         
@@ -321,15 +355,18 @@ class ModelColumnGen:
                     school_name = self.MyData.pref_index[i][j]
                     for k in range(j+1):
                         pref_school = self.MyData.pref_index[i][k]
-                        name = "Mu" +  str(self.MyData.ID_stud[i]) + "_" + str(pref_school)
+                        name = "Mu_" +  str(self.MyData.ID_stud[i]) + "_" + str(pref_school)
                         pricing_obj += self.M_pricing[i,pref_school] * duals[name]
                     
                     pricing_obj -= self.M_pricing[i,school_name] * (self.MyData.rank_pref[i,school_name]+ 1) / self.MyData.n_stud # + 1 because the indexing starts from zero
             pricing_obj += duals['Sum_to_one']
+                # This constant term will not be printed in the objective function in the .lp file, I think
+            #print(pricing_obj)
+            #print("Duals Sum_to_one", duals["Sum_to_one"])
+            #print("Duals", duals)
             self.pricing.setObjective(pricing_obj)
             
-            if print_out:
-                self.pricing.writeLP("PricingProblem.lp")
+            self.pricing.writeLP("PricingProblem.lp")
             
                 
             
