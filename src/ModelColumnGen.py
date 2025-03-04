@@ -425,6 +425,7 @@ class ModelColumnGen:
                 # Add non-negativity constraint to the master for this new matching
                 name = 'GE0_' + str(len(self.w))
                 self.constraints[name] = LpConstraintVar(name, LpConstraintGE, 0)
+                self.master += self.constraints[name]
                 
                 # Add the matching found by the pricing problem to the master problem       
                 found_M = np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools))
