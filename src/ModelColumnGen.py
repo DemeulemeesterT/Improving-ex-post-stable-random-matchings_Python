@@ -70,7 +70,7 @@ class ModelColumnGen:
         self.N_MATCH = range(self.nr_matchings)  # Number of matchings
 
         # Create the parameter set M[k][i][j]
-        self.M = {}
+        self.M = np.zeros((self.nr_matchings, self.MyData.n_stud, self.MyData.n_schools))
         for k in self.N_MATCH:
             for i in range(self.MyData.n_stud):
                 for j in range(self.MyData.n_schools):
@@ -80,10 +80,12 @@ class ModelColumnGen:
 
         # Store labels to make understanding output easier
         self.labels = {}
-        for k, i, j in self.M:
-            student_name = self.MyData.ID_stud[i]
-            school_name = self.MyData.ID_school[j]
-            self.labels[k, i, j] = f"M_{k}_{student_name}_{school_name}"
+        for k in self.N_MATCH:
+            for i in range(self.MyData.n_stud):
+                for j in range(self.MyData.n_schools):
+                    student_name = self.MyData.ID_stud[i]
+                    school_name = self.MyData.ID_school[j]
+                    self.labels[k, i, j] = f"M_{k}_{student_name}_{school_name}"
 
 
 
@@ -118,52 +120,23 @@ class ModelColumnGen:
                 name = "FOSD_" +  str(self.MyData.ID_stud[i]) + "_" + str(school_name)
                 self.constraints[name]=LpConstraintVar(name, LpConstraintGE, original_p)
 
+        # Non-negativity (explicitly included to get dual variables)
+        for m in self.N_MATCH:
+            name = 'GE0_' + str(m)
+            self.constraints[name] = LpConstraintVar(name, LpConstraintGE, 0)
+        
         # Add all these contraints to the model
         for c in self.constraints.values():
             self.master += c
 
-
-
+        
 
         #### DECISION VARIABLES ####
         self.w = []
-        print(self.nr_matchings)
+        #print(self.nr_matchings)
         for m in self.N_MATCH:
-            #print(m)
-            # First, determine coefficients of this variable in the constraints
-            coeff = {}
-            coeff["Sum_to_one"] = 1
-            coeff["Obj"] = 0 # Objective coefficients will be fixed later
-            for i in self.STUD:
-                for j in range(len(self.MyData.pref[i])):
-                    school_name = self.MyData.pref_index[i][j]
-                    name = "FOSD_" +  str(self.MyData.ID_stud[i]) + "_" + str(school_name)
-                    
-                    # Initialize the coefficient if it doesn't exist
-                    # (needed because we use +=, and not =)
-                    if name not in coeff:
-                        coeff[name] = 0
-                    
-                    for k in range(j+1):
-                        pref_school = self.MyData.pref_index[i][k]
-                        #print(m,i,j,pref_school, self.M[m,i,pref_school])
-                        coeff[name] += self.M[m,i,pref_school]
-        
-            # Then, create a dictionary for `e` that maps constraints to their coefficients
-            e_dict = {self.constraints[key]: coeff[key] for key in self.constraints if coeff[key] > 0}
-
-            # Add this variable to self.w
-            name_w = "w_" + str(m)
-            self.w.append(LpVariable(name_w, lowBound=0, upBound=1, e=e_dict))
-                          
-            # Compute objective coefficient of this variable (average rank)
-            obj_coeff = 0
-            for (i,j) in self.PAIRS:
-                obj_coeff += self.M[m,i,j]*(self.MyData.rank_pref[i,j]+ 1) / self.MyData.n_stud # + 1 because the indexing starts from zero
-
-            # Add this variable to the model with the correct objective coefficient
-            self.master.setObjective(self.master.objective+obj_coeff*self.w[m])
-
+            #print(self.M[m])
+            self.add_matching(self.M[m], m, print_out)
 
 
         # Create variables, and add them to the constraints
@@ -184,7 +157,55 @@ class ModelColumnGen:
         self.master.writeLP("TestColumnFormulation.lp")
         
         
+      
+    def add_matching(self, M_in: np.ndarray, index, print_out: bool):
+        """
+        Function to add a matching M as a decision variable to the master proble
+        Index is the index of the matching in the master problem
+        """  
         
+        # First, determine coefficients of this variable in the constraints
+        coeff = {}
+        coeff["Sum_to_one"] = 1
+        coeff["Obj"] = 0 # Objective coefficients will be fixed later
+        for i in self.STUD:
+            for j in range(len(self.MyData.pref[i])):
+                school_name = self.MyData.pref_index[i][j]
+                name = "FOSD_" +  str(self.MyData.ID_stud[i]) + "_" + str(school_name)
+                
+                # Initialize the coefficient if it doesn't exist
+                # (needed because we use +=, and not =)
+                if name not in coeff:
+                    coeff[name] = 0
+                
+                for k in range(j+1):
+                    pref_school = self.MyData.pref_index[i][k]
+                    #print(m,i,j,pref_school, self.M[m,i,pref_school])
+                    coeff[name] += M_in[i,pref_school]
+
+        # Non-negativity of the variables
+        # First, add a new constraint, and only then set the coefficient
+        for m in self.N_MATCH: 
+            name = 'GE0_' + str(m)
+            coeff[name] = 0
+        name = 'GE0_' + str(index)
+        coeff[name] = 1
+        
+        # Then, create a dictionary for `e` that maps constraints to their coefficients
+        e_dict = {self.constraints[key]: coeff[key] for key in self.constraints if coeff[key] > 0}
+
+        # Add this variable to self.w
+        name_w = "w_" + str(index)
+        self.w.append(LpVariable(name_w, e=e_dict))
+                        
+        # Compute objective coefficient of this variable (average rank)
+        obj_coeff = 0
+        for (i,j) in self.PAIRS:
+            obj_coeff += M_in[i,j]*(self.MyData.rank_pref[i,j]+ 1) / self.MyData.n_stud # + 1 because the indexing starts from zero
+
+        # Add this variable to the model with the correct objective coefficient
+        self.master.setObjective(self.master.objective+obj_coeff*self.w[index])
+
         
     def Solve(self, stab_constr: str, solver: str, print_out: bool):
         """
@@ -198,6 +219,16 @@ class ModelColumnGen:
                 print(solver_list)
             print_out (bool): boolean that controls which output is printed.
         """
+        # Compute average rank of current assignment
+        avg_rank = 0
+        for (i,j) in self.PAIRS:
+            avg_rank += self.p.assignment[i,j] * (self.MyData.rank_pref[i,j] + 1) # + 1 because the indexing starts from zero
+        # Average
+        avg_rank = avg_rank/self.MyData.n_stud
+        if print_out == True:
+            
+            print(f"\nAverage rank before optimization: {avg_rank}.\n\n")
+        
         
         # Check that strings-arguments are valid
 
@@ -252,14 +283,12 @@ class ModelColumnGen:
         # self.M_pricing = matching found in pricing problem
         self.M_pricing = {}
     
-        print(self.PAIRS)
         for (i,j) in self.PAIRS:
             # First, determine coefficients of this variable in the constraints
             coeff_pricing = {}
             
             # Initialize the coefficients to zero for all constraints 
             # (We won't have to initialize them one by one later then)
-            print(self.constraints_pricing)
             for name in self.constraints_pricing:
                 coeff_pricing[name] = 0     
             
@@ -296,7 +325,7 @@ class ModelColumnGen:
                         if (s,j) in self.PAIRS: # Check whether s prefers j to outside option
                             #print('i,j,rank prior, s, rank_prior_s', i,j,self.MyData.rank_prior[j][i], s, self.MyData.rank_prior[j][s])
                             if self.MyData.rank_prior[j][s] >= self.MyData.rank_prior[j][i]:
-                                print("i,s,j", i, s, j)
+                                #print("i,s,j", i, s, j)
                                 name_3 = "STAB_" + str(self.MyData.ID_stud[s]) + "_" + str(self.MyData.ID_school[j]) 
                                 coeff_pricing[name_3] += 1           
                 
@@ -313,7 +342,7 @@ class ModelColumnGen:
 
         
         
-        # Run the column generation procedure
+        #### RUN COLUMN GENERATION PROCEDURE ####
         optimal = False
         
         self.pricing.writeLP("PricingProblem.lp")
@@ -348,6 +377,12 @@ class ModelColumnGen:
                         
                     duals[name_duals]=self.master.constraints[name_constr].pi
 
+            for m in self.N_MATCH:
+                name_GE = 'GE0_' + str(m)
+                duals[name_GE] = self.master.constraints[name_GE].pi
+            if print_out:
+                print(duals)
+                
             # Modify objective function pricing problem
             pricing_obj = LpAffineExpression()
             for i in self.STUD:
@@ -361,6 +396,10 @@ class ModelColumnGen:
                     pricing_obj -= self.M_pricing[i,school_name] * (self.MyData.rank_pref[i,school_name]+ 1) / self.MyData.n_stud # + 1 because the indexing starts from zero
             pricing_obj += duals['Sum_to_one']
                 # This constant term will not be printed in the objective function in the .lp file, I think
+
+            for m in self.N_MATCH:
+                name_GE = 'GE0_' + str(m)
+                pricing_obj += duals[name_GE]
             #print(pricing_obj)
             #print("Duals Sum_to_one", duals["Sum_to_one"])
             #print("Duals", duals)
@@ -368,24 +407,43 @@ class ModelColumnGen:
             
             self.pricing.writeLP("PricingProblem.lp")
             
-                
-            
             # Solve modified pricing problem
             self.pricing.solve(solver_function())
 
-            
             obj_pricing_var = self.pricing.objective.value()
             self.obj_pricing.append(obj_pricing_var)
             
+            #if print_out:
+            if False:
+                for (i,j) in self.PAIRS:
+                    print("M[",i,j,'] =', self.M_pricing[i,j].value())
+            
+            #### EVALUATE SOLUTION ####
             if obj_pricing_var < 0:
                 # The solution of the master problem is not optimal over all weakly stable matchings
                 
-                # Add the matching found by the pricing problem to the master problem
-                print('Add found matching')
+                # Add non-negativity constraint to the master for this new matching
+                name = 'GE0_' + str(len(self.w))
+                self.constraints[name] = LpConstraintVar(name, LpConstraintGE, 0)
+                
+                # Add the matching found by the pricing problem to the master problem       
+                found_M = np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools))
+                for (i,j) in self.PAIRS:
+                    found_M[i][j] = self.M_pricing[i,j].value()
+                
+                self.add_matching(found_M, len(self.w), print_out)
+                
+                self.M_list.append(found_M)
+                self.nr_matchings += 1
+                self.N_MATCH = range(self.nr_matchings)
+                
+                print("Matching added.")
+                
             
             else:
                 # Optimal solution of master problem!
-                print("Optimal solution found!")
+                print("Optimal solution found! Best average rank: ", self.obj_master[-1])
+                print("Original average rank: ", avg_rank)
                 optimal = True
 
                 # Save the final solution
@@ -409,6 +467,10 @@ class ModelColumnGen:
                         self.Xdecomp[-1][i,j] = self.M[l,i,j]
                         self.Xassignment.assignment[i,j] += self.w[l].varValue * self.M[l,i,j]
                         
+                optimal = True        
+                
                 return self.Xassignment
+            
 
-            optimal = True
+
+            
