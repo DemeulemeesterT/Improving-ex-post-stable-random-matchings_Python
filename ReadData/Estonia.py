@@ -1,7 +1,11 @@
 import pandas as pd
 from src.Data import *
+import csv
 
-def read_data(file_path):
+# Coded with help of ChatGPT
+
+
+def read_dataEstonia(file_path):
     df = pd.read_csv(file_path, delimiter="\t")  # Adjust delimiter if necessary
 
     # Extract unique students and schools
@@ -18,14 +22,10 @@ def read_data(file_path):
     prior = [[] for _ in ID_school]
     for school in ID_school:
         school_applicants = df[df["garten_id"] == school].sort_values(by="distance_m")["child_id"].tolist()
-        prior[ID_school.index(school)] = [student for student in school_applicants]
+        prior[ID_school.index(school)] = school_applicants
 
-    # Assign default capacities (modify as needed)
-    cap = [10] * len(ID_school)  # Example: each school has a capacity of 10
-
-    print(pref)
-    print(prior[0])
-
+    # Capacities
+    cap = [20, 20, 34, 18, 20, 38, 5]
     
     return Data(n_stud=len(ID_stud), 
                 n_schools=len(ID_school), 

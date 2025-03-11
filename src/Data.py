@@ -89,7 +89,8 @@ class Data:
             s+= f"\t{self.ID_school[i]}\t"
             s+= f"{self.cap[i]}\t"
             for j in range(0, len(self.prior[i])):
-                if len(self.prior[i][j]) >= 2:
+                #if len(self.prior[i][j]) >= 2:
+                if isinstance(self.prior[i][j], tuple):
                     s+=f"{{"
                     for k in range(0, len(self.prior[i][j])):
                         s+=f"{self.prior[i][j][k]}"
