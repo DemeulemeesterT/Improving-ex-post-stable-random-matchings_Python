@@ -10,6 +10,8 @@ from .Assignment import *
 import pulp as pl
 from pulp import *
 
+import gurobipy
+
 # To check which solvers available on computer:
 # print(pl.listSolvers(onlyAvailable=True))
 

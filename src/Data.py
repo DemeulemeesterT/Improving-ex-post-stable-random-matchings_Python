@@ -1,6 +1,10 @@
 import numpy as np
 import copy # To make deep copies
 
+# Comment out if pulp and gurobipy are already installed
+#! pip install pulp
+#! pip install gurobipy
+
 class Data:
     """
     Class Data:

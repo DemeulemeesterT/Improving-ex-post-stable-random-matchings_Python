@@ -9,6 +9,8 @@ from .Assignment import *
 import pulp as pl
 from pulp import *
 
+import gurobipy
+
 # To check which solvers available on computer:
 # print(pl.listSolvers(onlyAvailable=True))
 
@@ -346,8 +348,17 @@ class ModelColumnGen:
         optimal = False
         
         self.pricing.writeLP("PricingProblem.lp")
+        iterations = 1
         
         while (optimal == False):
+            if print_out:
+                print(iterations)
+                print("\n\n ****** MASTER ****** \n\n")
+                print("Number of matchings:", self.nr_matchings)
+                for m in self.N_MATCH:
+                    print(self.M_list[m])
+
+
             #### SOLVE MASTER ####
             # Create two empty arrays to store objective values of master and pricing problem
             self.obj_master = []
@@ -362,6 +373,10 @@ class ModelColumnGen:
             
             # Get objective value master problem
             self.obj_master.append(self.master.objective.value())
+
+            if print_out:
+                for m in self.N_MATCH:
+                    print("w_", m, self.w[m].value())
             
             #### SOLVE PRICING ####
             # Get dual variables
@@ -384,35 +399,50 @@ class ModelColumnGen:
                 print(duals)
                 
             # Modify objective function pricing problem
+            # Careful, don't add constant terms, won't be taken into consideration!
             pricing_obj = LpAffineExpression()
             for i in self.STUD:
+                print('student ', i)
                 for j in range(len(self.MyData.pref[i])):
                     school_name = self.MyData.pref_index[i][j]
+                    pricing_obj -= self.M_pricing[i,school_name] * (self.MyData.rank_pref[i,school_name]+ 1) / self.MyData.n_stud # + 1 because the indexing starts from zero
+                    print('  school ', school_name, -(self.MyData.rank_pref[i,school_name]+ 1) / self.MyData.n_stud)
                     for k in range(j+1):
                         pref_school = self.MyData.pref_index[i][k]
                         name = "Mu_" +  str(self.MyData.ID_stud[i]) + "_" + str(pref_school)
                         pricing_obj += self.M_pricing[i,pref_school] * duals[name]
-                    
-                    pricing_obj -= self.M_pricing[i,school_name] * (self.MyData.rank_pref[i,school_name]+ 1) / self.MyData.n_stud # + 1 because the indexing starts from zero
-            pricing_obj += duals['Sum_to_one']
-                # This constant term will not be printed in the objective function in the .lp file, I think
+                        print('      school ', pref_school, duals[name])
 
-            for m in self.N_MATCH:
-                name_GE = 'GE0_' + str(m)
-                pricing_obj += duals[name_GE]
-            #print(pricing_obj)
+            print(pricing_obj)
             #print("Duals Sum_to_one", duals["Sum_to_one"])
             #print("Duals", duals)
+
+
             self.pricing.setObjective(pricing_obj)
+
+
             
             self.pricing.writeLP("PricingProblem.lp")
             
             # Solve modified pricing problem
+            if print_out:
+                print("\n\n ****** PRICING ****** \n\n")
+
             self.pricing.solve(solver_function())
 
-            obj_pricing_var = self.pricing.objective.value()
+            # Add the constant terms!
+            constant = 0
+            constant += duals['Sum_to_one']
+                # This constant term will not be printed in the objective function in the .lp file, I think
+
+            for m in self.N_MATCH:
+                name_GE = 'GE0_' + str(m)
+                constant += duals[name_GE]
+
+            obj_pricing_var = self.pricing.objective.value() + constant
             self.obj_pricing.append(obj_pricing_var)
-            
+            print("Objective value: ", obj_pricing_var)
+
             #if print_out:
             if False:
                 for (i,j) in self.PAIRS:
@@ -439,6 +469,14 @@ class ModelColumnGen:
                 self.N_MATCH = range(self.nr_matchings)
                 
                 print("Matching added.")
+                if print_out:
+                    print(found_M)
+
+                if iterations == 1:
+                    optimal = True
+                    print("Process terminated after ", iterations, " iterations.")
+                iterations = iterations + 1
+
                 
             
             else:
