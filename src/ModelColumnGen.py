@@ -200,6 +200,7 @@ class ModelColumnGen:
         # Add this variable to self.w
         name_w = "w_" + str(index)
         self.w.append(LpVariable(name_w, e=e_dict))
+        
                         
         # Compute objective coefficient of this variable (average rank)
         obj_coeff = 0
@@ -208,6 +209,9 @@ class ModelColumnGen:
 
         # Add this variable to the model with the correct objective coefficient
         self.master.setObjective(self.master.objective+obj_coeff*self.w[index])
+
+        self.master.writeLP("TestColumnFormulation.lp")
+
 
         
     def Solve(self, stab_constr: str, solver: str, print_log: str, print_out: bool):
@@ -258,18 +262,16 @@ class ModelColumnGen:
         iterations = 1
         print("Number of matchings:", self.nr_matchings)
 
+        # Create two empty arrays to store objective values of master and pricing problem
+        self.obj_master = []
+        self.obj_pricing = []
+
         while (optimal == False):
             print('ITERATION:', iterations)            
             if print_out:
                 print("\n ****** MASTER ****** \n")
                 for m in self.N_MATCH:
                     print(self.M_list[m])
-
-
-            #### SOLVE MASTER ####
-            # Create two empty arrays to store objective values of master and pricing problem
-            self.obj_master = []
-            self.obj_pricing = []
 
             # String can't be used as the argument in solve method, so convert it like this:
             solver_function = globals()[solver]  # Retrieves the GUROBI function or class
@@ -385,6 +387,7 @@ class ModelColumnGen:
                     
                     self.M_list.append(found_M)
                     self.nr_matchings += 1
+                    print("New number of matchings:", self.nr_matchings)
                     self.N_MATCH = range(self.nr_matchings)
                     
                     print("Matching added.")
@@ -456,16 +459,8 @@ class ModelColumnGen:
          
         # Exclude matchings that are already found:
         # Simple "no-good" cuts, where you sum matched student-school pairs for matching l, and force the sum to be strictly smaller
-        #for l in self.N_MATCH:
-            #lin = LpAffineExpression()
-            #counter = 0
-            #for (i,j) in self.PAIRS:
-            #    if self.M_list[l][i][j] == 1:
-            #        lin += self.M_pricing[i,j]
-            #        counter = counter + 1
-            #self.pricing += (lin <= counter - 1, f"EXCL_M_{l}")
-            
-            #self.pricing += lpSum([self.M_pricing[i,j] * self.M_list[l][i][j] for (i,j) in self.PAIRS]) <= lpSum([self.M_list[l][i][j] for (i,j) in self.PAIRS]) - 1, f"EXCL_M_{l}"
+        for l in self.N_MATCH:            
+            self.pricing += lpSum([self.M_pricing[i,j] * self.M_list[l][i][j] for (i,j) in self.PAIRS]) <= lpSum([self.M_list[l][i][j] for (i,j) in self.PAIRS]) - 1, f"EXCL_M_{l}"
         
 
     def pricing_opt_solution(self, avg_rank: int, print_out: str):
@@ -497,8 +492,8 @@ class ModelColumnGen:
             self.Xdecomp.append(np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools)))
             self.Xdecomp_coeff.append(self.w[l].varValue)
             for (i,j) in self.PAIRS:
-                self.Xdecomp[-1][i,j] = self.M[l,i,j]
-                self.Xassignment.assignment[i,j] += self.w[l].varValue * self.M[l,i,j]
+                self.Xdecomp[-1][i,j] = self.M_list[l][i][j]
+                self.Xassignment.assignment[i,j] += self.w[l].varValue * self.M_list[l][i][j]
                 
         
         return self.Xassignment
