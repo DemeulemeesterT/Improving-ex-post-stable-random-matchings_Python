@@ -141,6 +141,7 @@ class ModelColumnGen:
             self.add_matching(self.M[m], m, print_out)
 
 
+
         # Create variables, and add them to the constraints
         
         # w[k] is the weight of matching k in the decomposition
@@ -209,7 +210,7 @@ class ModelColumnGen:
         self.master.setObjective(self.master.objective+obj_coeff*self.w[index])
 
         
-    def Solve(self, stab_constr: str, solver: str, print_out: bool):
+    def Solve(self, stab_constr: str, solver: str, print_log: str, print_out: bool):
         """
         Solves the formulation using column generation.
         Returns an instance from the Assignment class.
@@ -227,9 +228,8 @@ class ModelColumnGen:
             avg_rank += self.p.assignment[i,j] * (self.MyData.rank_pref[i,j] + 1) # + 1 because the indexing starts from zero
         # Average
         avg_rank = avg_rank/self.MyData.n_stud
-        if print_out == True:
-            
-            print(f"\nAverage rank before optimization: {avg_rank}.\n\n")
+        #if print_out == True:   
+        print(f"\nAverage rank before optimization: {avg_rank}.\n\n")
         
         
         # Check that strings-arguments are valid
@@ -242,119 +242,26 @@ class ModelColumnGen:
         # Valid values for 'stab_constr'
         stab_list = ["TRAD"]
         if stab_constr not in stab_list:
-           raise ValueError(f"Invalid value: '{stab_constr}'. Allowed values are: {stab_list}")
-
+           raise ValueError(f"Invalid value: '{stab_constr}'. Allowed values are: {stab_list}")        
 
 
         #### PRICING PROBLEM ####
-        # Create Pulp model for pricing problem
-        self.pricing = LpProblem("Pricing problem", LpMinimize)
-        
-        
-        
-        
-        ### CONSTRAINTS PRICING ###
-        self.constraints_pricing = {}
-        
-        # Each student at most one school
-        for i in self.STUD:
-            name = "LESS_ONE_" + str(i)
-            self.constraints_pricing[name] = LpConstraintVar(name, LpConstraintLE, 1)
+        # Defined in separate function
+        self.build_pricing(stab_constr, print_out)
 
-        # Capacities schools respected
-        for j in self.SCHOOLS:
-            name = "LESS_CAP_" + str(j)
-            self.constraints_pricing[name] = LpConstraintVar(name, LpConstraintLE, self.MyData.cap[j])
-    
-        # Stability
-        if stab_constr == "TRAD":
-            for i in self.STUD:
-                for j in range(len(self.MyData.pref_index[i])):                
-                        current_school = self.MyData.pref_index[i][j]
-                        name = "STAB_" + str(self.MyData.ID_stud[i]) + "_" + str(self.MyData.ID_school[current_school]) 
-                        self.constraints_pricing[name] = LpConstraintVar(name, LpConstraintGE, self.MyData.cap[current_school])
-
-        # Add all these contraints to the pricing model
-        for c in self.constraints_pricing.values():
-            self.pricing += c
-        
-        
-        
-        
-        ### DECISION VARIABLES PRICING ###
-        # self.M_pricing = matching found in pricing problem
-        self.M_pricing = {}
-    
-        for (i,j) in self.PAIRS:
-            # First, determine coefficients of this variable in the constraints
-            coeff_pricing = {}
-            
-            # Initialize the coefficients to zero for all constraints 
-            # (We won't have to initialize them one by one later then)
-            for name in self.constraints_pricing:
-                coeff_pricing[name] = 0     
-            
-            # Each student at most assigned to one school
-            name = "LESS_ONE_" + str(i)
-            coeff_pricing[name] = 1
- 
-            # Capacities schools respected
-            name = "LESS_CAP_" + str(j)
-            coeff_pricing[name] = 1
-         
-            # Stability
-            if stab_constr == "TRAD":                            
-                ### Add this variable to constraint to enforce stability corresponding to (i,j)
-                #name_1 = "STAB_" + str(self.MyData.ID_stud[i]) + "_" + str(self.MyData.ID_school[j]) 
-                    
-                #coeff_pricing[name_1] += self.MyData.cap[j]
-                
-                
-                ### Add variable to constraints (i,k) where j has a higher preference than k
-                # First find rank of j in preference list i
-                rank_j = self.MyData.rank_pref[i,j]
-                #print('i,j,rank pref', i,j,rank_j)
-                for k in range(int(rank_j), len(self.MyData.pref_index[i])): # Go over all weakly less preferred schools
-                    current_school = self.MyData.pref_index[i][k]
-                    name_2 = "STAB_" + str(self.MyData.ID_stud[i]) + "_" + str(self.MyData.ID_school[current_school]) 
-                    coeff_pricing[name_2] += self.MyData.cap[current_school]
-                
-                
-                
-                # Add variable to constraints (s,j) where i has a higher priority than s on school j
-                for s in self.STUD:
-                    if s!= i:
-                        if (s,j) in self.PAIRS: # Check whether s prefers j to outside option
-                            #print('i,j,rank prior, s, rank_prior_s', i,j,self.MyData.rank_prior[j][i], s, self.MyData.rank_prior[j][s])
-                            if self.MyData.rank_prior[j][s] >= self.MyData.rank_prior[j][i]:
-                                #print("i,s,j", i, s, j)
-                                name_3 = "STAB_" + str(self.MyData.ID_stud[s]) + "_" + str(self.MyData.ID_school[j]) 
-                                coeff_pricing[name_3] += 1           
-                
-
-            # Then, create a dictionary for `e` that maps constraints to their coefficients
-            e_dict = {}
-            e_dict = {self.constraints_pricing[key]: coeff_pricing[key] for key in coeff_pricing if coeff_pricing[key] > 0}
-
-
-            student_name = self.MyData.ID_stud[i]
-            school_name = self.MyData.ID_school[j]
-            name_M_pricing = 'M_' + str(student_name) + ',' + str(school_name)
-            self.M_pricing[i,j] = LpVariable(name_M_pricing, lowBound=0, upBound=1, cat = LpBinary, e=e_dict)
-
-        
+       
         
         #### RUN COLUMN GENERATION PROCEDURE ####
         optimal = False
         
         self.pricing.writeLP("PricingProblem.lp")
         iterations = 1
-        
+        print("Number of matchings:", self.nr_matchings)
+
         while (optimal == False):
+            print('ITERATION:', iterations)            
             if print_out:
-                print(iterations)
-                print("\n\n ****** MASTER ****** \n\n")
-                print("Number of matchings:", self.nr_matchings)
+                print("\n ****** MASTER ****** \n")
                 for m in self.N_MATCH:
                     print(self.M_list[m])
 
@@ -363,16 +270,20 @@ class ModelColumnGen:
             # Create two empty arrays to store objective values of master and pricing problem
             self.obj_master = []
             self.obj_pricing = []
-            
+
             # String can't be used as the argument in solve method, so convert it like this:
             solver_function = globals()[solver]  # Retrieves the GUROBI function or class
             
             # Solve the formulation
-            self.master.solve(solver_function())
+            if print_log == False:
+                self.master.solve(solver_function(msg = False, logPath = "Logfile_master.log"))
+            else:
+                self.master.solve(solver_function(msg = True))
             #self.model.solve(GUROBI_CMD(keepFiles=True, msg=True, options=[("IISFind", 1)]))
             
             # Get objective value master problem
             self.obj_master.append(self.master.objective.value())
+            print("Objective master: ", self.obj_master[-1])
 
             if print_out:
                 for m in self.N_MATCH:
@@ -402,18 +313,19 @@ class ModelColumnGen:
             # Careful, don't add constant terms, won't be taken into consideration!
             pricing_obj = LpAffineExpression()
             for i in self.STUD:
-                print('student ', i)
+                #print('student ', i)
                 for j in range(len(self.MyData.pref[i])):
                     school_name = self.MyData.pref_index[i][j]
                     pricing_obj -= self.M_pricing[i,school_name] * (self.MyData.rank_pref[i,school_name]+ 1) / self.MyData.n_stud # + 1 because the indexing starts from zero
-                    print('  school ', school_name, -(self.MyData.rank_pref[i,school_name]+ 1) / self.MyData.n_stud)
+                    #print('  school ', school_name, -(self.MyData.rank_pref[i,school_name]+ 1) / self.MyData.n_stud)
                     for k in range(j+1):
                         pref_school = self.MyData.pref_index[i][k]
                         name = "Mu_" +  str(self.MyData.ID_stud[i]) + "_" + str(pref_school)
                         pricing_obj += self.M_pricing[i,pref_school] * duals[name]
-                        print('      school ', pref_school, duals[name])
+                        #print('      school ', pref_school, duals[name])
 
-            print(pricing_obj)
+            if print_out:
+                print(pricing_obj)
             #print("Duals Sum_to_one", duals["Sum_to_one"])
             #print("Duals", duals)
 
@@ -426,9 +338,12 @@ class ModelColumnGen:
             
             # Solve modified pricing problem
             if print_out:
-                print("\n\n ****** PRICING ****** \n\n")
+                print("\n ****** PRICING ****** \n")
 
-            self.pricing.solve(solver_function())
+            if print_log == True:
+                self.pricing.solve(solver_function())
+            else:
+                self.pricing.solve(solver_function(msg=False, logPath = 'Logfile_pricing.log'))
 
             # Add the constant terms!
             constant = 0
@@ -439,9 +354,12 @@ class ModelColumnGen:
                 name_GE = 'GE0_' + str(m)
                 constant += duals[name_GE]
 
-            obj_pricing_var = self.pricing.objective.value() + constant
-            self.obj_pricing.append(obj_pricing_var)
-            print("Objective value: ", obj_pricing_var)
+            # If not infeasible:
+            if self.pricing.status != -1:
+                #print("Status code: ", self.pricing.status)
+                obj_pricing_var = self.pricing.objective.value() + constant
+                self.obj_pricing.append(obj_pricing_var)
+                print("\t\tObjective pricing: ", obj_pricing_var)
 
             #if print_out:
             if False:
@@ -449,67 +367,138 @@ class ModelColumnGen:
                     print("M[",i,j,'] =', self.M_pricing[i,j].value())
             
             #### EVALUATE SOLUTION ####
-            if obj_pricing_var < 0:
-                # The solution of the master problem is not optimal over all weakly stable matchings
-                
-                # Add non-negativity constraint to the master for this new matching
-                name = 'GE0_' + str(len(self.w))
-                self.constraints[name] = LpConstraintVar(name, LpConstraintGE, 0)
-                self.master += self.constraints[name]
-                
-                # Add the matching found by the pricing problem to the master problem       
-                found_M = np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools))
-                for (i,j) in self.PAIRS:
-                    found_M[i][j] = self.M_pricing[i,j].value()
-                
-                self.add_matching(found_M, len(self.w), print_out)
-                
-                self.M_list.append(found_M)
-                self.nr_matchings += 1
-                self.N_MATCH = range(self.nr_matchings)
-                
-                print("Matching added.")
-                if print_out:
-                    print(found_M)
-
-                if iterations == 1:
-                    optimal = True
-                    print("Process terminated after ", iterations, " iterations.")
-                iterations = iterations + 1
-
-                
-            
-            else:
-                # Optimal solution of master problem!
-                print("Optimal solution found! Best average rank: ", self.obj_master[-1])
-                print("Original average rank: ", avg_rank)
-                optimal = True
-
-                # Save the final solution
-                # Create variables to store the solution in
-                self.Xdecomp = [] # Matchings in the found decomposition
-                self.Xdecomp_coeff = [] # Weights of these matchings
-                zero = np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools))
-                self.Xassignment = Assignment(self.MyData, zero) # Contains the final assignment found by the model
-                
-                # Make sure assignment is empty in Xassignment
-                self.Xassignment.assignment = np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools))
-
-                # Store decomposition
-                self.Xdecomp = [] # Matchings in the found decomposition
-                self.Xdecomp_coeff = [] # Weights of these matchings
-
-                for l in self.N_MATCH:
-                    self.Xdecomp.append(np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools)))
-                    self.Xdecomp_coeff.append(self.w[l].varValue)
+            if self.pricing.status != -1:            
+                if obj_pricing_var < 0:
+                    # The solution of the master problem is not optimal over all weakly stable matchings
+                    
+                    # Add non-negativity constraint to the master for this new matching
+                    name = 'GE0_' + str(len(self.w))
+                    self.constraints[name] = LpConstraintVar(name, LpConstraintGE, 0)
+                    self.master += self.constraints[name]
+                    
+                    # Add the matching found by the pricing problem to the master problem       
+                    found_M = np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools))
                     for (i,j) in self.PAIRS:
-                        self.Xdecomp[-1][i,j] = self.M[l,i,j]
-                        self.Xassignment.assignment[i,j] += self.w[l].varValue * self.M[l,i,j]
-                        
-                optimal = True        
+                        found_M[i][j] = self.M_pricing[i,j].value()
+                    
+                    self.add_matching(found_M, len(self.w), print_out)
+                    
+                    self.M_list.append(found_M)
+                    self.nr_matchings += 1
+                    self.N_MATCH = range(self.nr_matchings)
+                    
+                    print("Matching added.")
+                    if print_out:
+                        print(found_M)
+
+                    if iterations == 10:
+                        optimal = True
+                        print("Process terminated after ", iterations, " iterations.")
+                    iterations = iterations + 1                
+            
+                else:
+                    optimal = True  
+                    return self.pricing_opt_solution(avg_rank, print_out)     
+            else:
+                optimal = True
+                return self.pricing_opt_solution(avg_rank, print_out)     
+
+
+            
+
+    def build_pricing(self, stab_constr: str, print_out: bool):
+        # Create Pulp model for pricing problem
+        self.pricing = LpProblem("Pricing problem", LpMinimize)
+
+        # Decision variables
+        self.M_pricing = LpVariable.dicts("M", [(i, j) for i, j in self.PAIRS], cat="Binary")
+        # Rename M
+        for i, j in self.M_pricing:
+            student_name = self.MyData.ID_stud[i]
+            school_name = self.MyData.ID_school[j]
+            self.M_pricing[i, j].name = f"M_{student_name}_{school_name}"
+
+        ### CONSTRAINTS ###
+        # Stability
+        for i in self.STUD:
+            for j in range(len(self.MyData.pref_index[i])):
+                current_school = self.MyData.pref_index[i][j]
+                lin = LpAffineExpression()
+
+                lin += self.MyData.cap[current_school] * self.M_pricing[i, current_school]
+
+                # Add all schools that are at least as preferred as the j-ranked school by student i
+                for l in range(j):
+                    lin += self.MyData.cap[current_school] * self.M_pricing[i,self.MyData.pref_index[i][l]]
+
+
+                # Add terms based on priorities
+                prior_current = self.MyData.rank_prior[current_school][i]
+                for s in self.STUD:
+                    if s != i:
+                        # If current_school ranks student s higher than student i
+                        if self.MyData.rank_prior[current_school][s] <= self.MyData.rank_prior[current_school][i]:
+                            if (s, current_school) in self.PAIRS:
+                                lin += self.M_pricing[s,current_school]
+
+                # Add to model:
+                name = "STAB_" + str(self.MyData.ID_stud[i]) + "_" + str(self.MyData.ID_school[current_school]) 
+                self.pricing += (lin >= self.MyData.cap[current_school], name) 
+
+        
+        # Each student at most assigned to one school
+        for i in self.STUD:
+            self.pricing += lpSum([self.M_pricing[i,j] for j in self.SCHOOLS if (i,j) in self.PAIRS]) <= 1, f"LESS_ONE_{l,i}"
+
+        # Capacities schools respected
+        for j in self.SCHOOLS:
+            self.pricing += lpSum([self.M_pricing[i,j] for i in self.STUD if (i,j) in self.PAIRS]) <= self.MyData.cap[j], f"LESS_CAP_{l,j}"
+         
+        # Exclude matchings that are already found:
+        # Simple "no-good" cuts, where you sum matched student-school pairs for matching l, and force the sum to be strictly smaller
+        #for l in self.N_MATCH:
+            #lin = LpAffineExpression()
+            #counter = 0
+            #for (i,j) in self.PAIRS:
+            #    if self.M_list[l][i][j] == 1:
+            #        lin += self.M_pricing[i,j]
+            #        counter = counter + 1
+            #self.pricing += (lin <= counter - 1, f"EXCL_M_{l}")
+            
+            #self.pricing += lpSum([self.M_pricing[i,j] * self.M_list[l][i][j] for (i,j) in self.PAIRS]) <= lpSum([self.M_list[l][i][j] for (i,j) in self.PAIRS]) - 1, f"EXCL_M_{l}"
+        
+
+    def pricing_opt_solution(self, avg_rank: int, print_out: str):
+        # Optimal solution of master problem!
+        print("Optimal solution found! Best average rank: ", self.obj_master[-1])
+        print("Original average rank: ", avg_rank)
+
+        if print_out:
+            if self.pricing.status == -1:
+                print('Pricing problem INFEASIBLE')
+            else:
+                print('Objective pricing problem: ', self.obj_pricing[-1])
                 
-                return self.Xassignment
-            
+        # Save the final solution
+        # Create variables to store the solution in
+        self.Xdecomp = [] # Matchings in the found decomposition
+        self.Xdecomp_coeff = [] # Weights of these matchings
+        zero = np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools))
+        self.Xassignment = Assignment(self.MyData, zero) # Contains the final assignment found by the model
+        
+        # Make sure assignment is empty in Xassignment
+        self.Xassignment.assignment = np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools))
 
+        # Store decomposition
+        self.Xdecomp = [] # Matchings in the found decomposition
+        self.Xdecomp_coeff = [] # Weights of these matchings
 
-            
+        for l in self.N_MATCH:
+            self.Xdecomp.append(np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools)))
+            self.Xdecomp_coeff.append(self.w[l].varValue)
+            for (i,j) in self.PAIRS:
+                self.Xdecomp[-1][i,j] = self.M[l,i,j]
+                self.Xassignment.assignment[i,j] += self.w[l].varValue * self.M[l,i,j]
+                
+        
+        return self.Xassignment
