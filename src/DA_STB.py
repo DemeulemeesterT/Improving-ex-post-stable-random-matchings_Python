@@ -3,7 +3,6 @@ from .GaleShapley import gale_shapley
 
 from numpy.random import default_rng
 import time
-from tqdm import tqdm # To show progress bar
 import math
 import itertools
 
@@ -35,7 +34,7 @@ def DA_STB(MyData: Data, n_iter: int, seed = 123456789, print_out = False):
     students_in_ties = set()
     for j in range(MyData.n_schools):
         for k in range(len(MyData.prior[j])):
-            if len(MyData.prior[j][k]) >= 2: # When more than a single student in this element
+            if isinstance(MyData.prior[j][k], tuple): # When more than a single student in this element
                 for l in range(len(MyData.prior[j][k])):
                     # students_in_ties.add(MyData.ID_stud.index(MyData.prior[j][k][l])) # We add the index of this student, not its name
                     students_in_ties.add(MyData.prior[j][k][l])
@@ -72,7 +71,7 @@ def DA_STB(MyData: Data, n_iter: int, seed = 123456789, print_out = False):
     # Only matchings that were not in the set yet will be added.
     M_set = set()
 
-    for p in tqdm(permut):
+    for p in tqdm(permut, desc='Generate DA_STB', unit = 'perturb', disable= not print_out):
         prior_new = [] 
         for j in range(len(MyData.prior)):
             # Just add priorities if no ties:
@@ -81,15 +80,15 @@ def DA_STB(MyData: Data, n_iter: int, seed = 123456789, print_out = False):
             else:
                 prior_array = []
                 for k in range(len(MyData.prior[j])):
-                    if len(MyData.prior[j][k]) == 1:
-                        prior_array.append(MyData.prior[j][k])
-                    else: # set of students who have same priorities
+                    if isinstance(MyData.prior[j][k], tuple): # set of students who have same priorities
                         # Reorder the students based on the permuation
                         reordered_prior = list(sorted(MyData.prior[j][k], key=lambda x: p.index(x)))
 
                         # Add to prior_array
                         for l in range(len(MyData.prior[j][k])):
                             prior_array.append(reordered_prior[l])
+                    else:
+                        prior_array.append(MyData.prior[j][k])                        
                 prior_new.append(prior_array)
                 
         # Compute DA matching for the new priorities after tie-breaking

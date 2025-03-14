@@ -1,6 +1,5 @@
 from .Data import *
 
-import os
 import seaborn as sns
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap

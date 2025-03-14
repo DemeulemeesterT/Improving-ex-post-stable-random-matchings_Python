@@ -136,7 +136,7 @@ class ModelColumnGen:
         #### DECISION VARIABLES ####
         self.w = []
         #print(self.nr_matchings)
-        for m in self.N_MATCH:
+        for m in tqdm(self.N_MATCH, desc='Master: add decision variables', unit='var', disable= not print_out):
             #print(self.M[m])
             self.add_matching(self.M[m], m, print_out)
 
@@ -210,7 +210,7 @@ class ModelColumnGen:
         # Add this variable to the model with the correct objective coefficient
         self.master.setObjective(self.master.objective+obj_coeff*self.w[index])
 
-        self.master.writeLP("TestColumnFormulation.lp")
+        #self.master.writeLP("TestColumnFormulation.lp")
 
 
         
@@ -310,6 +310,10 @@ class ModelColumnGen:
                 duals[name_GE] = self.master.constraints[name_GE].pi
             if print_out:
                 print(duals)
+            
+            for name in duals:
+                if duals[name] < 0.00001:
+                    print(name, duals[name])
                 
             # Modify objective function pricing problem
             # Careful, don't add constant terms, won't be taken into consideration!
@@ -337,15 +341,6 @@ class ModelColumnGen:
 
             
             self.pricing.writeLP("PricingProblem.lp")
-            
-            # Solve modified pricing problem
-            if print_out:
-                print("\n ****** PRICING ****** \n")
-
-            if print_log == True:
-                self.pricing.solve(solver_function())
-            else:
-                self.pricing.solve(solver_function(msg=False, logPath = 'Logfile_pricing.log'))
 
             # Add the constant terms!
             constant = 0
@@ -355,6 +350,19 @@ class ModelColumnGen:
             for m in self.N_MATCH:
                 name_GE = 'GE0_' + str(m)
                 constant += duals[name_GE]
+            
+            # Solve modified pricing problem
+            if print_out:
+                print("\n ****** PRICING ****** \n")
+
+
+            if print_log == True:  
+                self.pricing.solve(solver_function())
+
+            else:
+                self.pricing.solve(solver_function(msg=False, logPath = 'Logfile_pricing.log'))
+
+            
 
             # If not infeasible:
             if self.pricing.status != -1:
@@ -459,8 +467,8 @@ class ModelColumnGen:
          
         # Exclude matchings that are already found:
         # Simple "no-good" cuts, where you sum matched student-school pairs for matching l, and force the sum to be strictly smaller
-        for l in self.N_MATCH:            
-            self.pricing += lpSum([self.M_pricing[i,j] * self.M_list[l][i][j] for (i,j) in self.PAIRS]) <= lpSum([self.M_list[l][i][j] for (i,j) in self.PAIRS]) - 1, f"EXCL_M_{l}"
+        #for l in tqdm(self.N_MATCH, desc='Pricing exclude found matchings', unit='matchings', disable=not print_out):            
+        #    self.pricing += lpSum([self.M_pricing[i,j] * self.M_list[l][i][j] for (i,j) in self.PAIRS]) <= lpSum([self.M_list[l][i][j] for (i,j) in self.PAIRS]) - 1, f"EXCL_M_{l}"
         
 
     def pricing_opt_solution(self, avg_rank: int, print_out: str):
