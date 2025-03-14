@@ -10,6 +10,8 @@ from .Assignment import *
 import pulp as pl
 from pulp import *
 
+import gurobipy
+
 # To check which solvers available on computer:
 # print(pl.listSolvers(onlyAvailable=True))
 
@@ -45,7 +47,7 @@ class ModelHeuristicLP:
         self.Xdecomp = [] # Matchings in the found decomposition
         self.Xdecomp_coeff = [] # Weights of these matchings
         zero = np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools))
-        self.Xassignment = Assignment(MyData, zero) # Contains the final assignment found by the model
+        self.Xassignment = Assignment(self.MyData, zero) # Contains the final assignment found by the model
 
         #### DECISION VARIABLES ####
         self.STUD = range(0,self.MyData.n_stud)
@@ -121,8 +123,6 @@ class ModelHeuristicLP:
         Args:
             obj (str): controls the objective function
                 "IMPR_RANK": minimizes expected rank while maintaining ex-post stability
-                "STABLE": maximizes fraction of stable matchings in decomposition
-                "EX_ANTE": finds ex-ante stable improvement (heuristic)
             solver (str): controls which solver is used. See options through following commands:
                 solver_list = pl.listSolvers(onlyAvailable=True)
                 print(solver_list)

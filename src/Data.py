@@ -1,5 +1,13 @@
 import numpy as np
 import copy # To make deep copies
+import os
+from tqdm import tqdm # To show progress bar
+    # If you import from tqdm.auto, it will import notebook version of tqdm automatically when in notebook
+
+
+# Comment out if pulp and gurobipy are already installed
+#! pip install pulp
+#! pip install gurobipy
 
 class Data:
     """
@@ -27,6 +35,14 @@ class Data:
         self.ID_stud = copy.deepcopy(ID_stud)
         self.ID_school = copy.deepcopy(ID_school)
         self.file_name = file_name   
+        self.file_name = os.path.basename(self.file_name)  
+        if '/' in self.file_name:
+            # If name contains slash, problems with directories. Replace by _
+            self.file_name = self.file_name.replace('/', '_')
+        
+        if '.' in self.file_name:
+            self.file_name = self.file_name.replace('.', '_')
+
 
         # Create alternative copies of pref and prior in which the elements are no longer strings, 
         # but the indices of the corresponding elements in the ID vectors
@@ -85,7 +101,8 @@ class Data:
             s+= f"\t{self.ID_school[i]}\t"
             s+= f"{self.cap[i]}\t"
             for j in range(0, len(self.prior[i])):
-                if len(self.prior[i][j]) >= 2:
+                #if len(self.prior[i][j]) >= 2:
+                if isinstance(self.prior[i][j], tuple):
                     s+=f"{{"
                     for k in range(0, len(self.prior[i][j])):
                         s+=f"{self.prior[i][j][k]}"
