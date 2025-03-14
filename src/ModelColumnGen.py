@@ -123,9 +123,9 @@ class ModelColumnGen:
                 self.constraints[name]=LpConstraintVar(name, LpConstraintGE, original_p)
 
         # Non-negativity (explicitly included to get dual variables)
-        for m in self.N_MATCH:
-            name = 'GE0_' + str(m)
-            self.constraints[name] = LpConstraintVar(name, LpConstraintGE, 0)
+        #for m in self.N_MATCH:
+        #    name = 'GE0_' + str(m)
+        #    self.constraints[name] = LpConstraintVar(name, LpConstraintGE, 0)
         
         # Add all these contraints to the model
         for c in self.constraints.values():
@@ -188,18 +188,18 @@ class ModelColumnGen:
 
         # Non-negativity of the variables
         # First, add a new constraint, and only then set the coefficient
-        for m in self.N_MATCH: 
-            name = 'GE0_' + str(m)
-            coeff[name] = 0
-        name = 'GE0_' + str(index)
-        coeff[name] = 1
+        #for m in self.N_MATCH: 
+        #    name = 'GE0_' + str(m)
+        #    coeff[name] = 0
+        #name = 'GE0_' + str(index)
+        #coeff[name] = 1
         
         # Then, create a dictionary for `e` that maps constraints to their coefficients
         e_dict = {self.constraints[key]: coeff[key] for key in self.constraints if coeff[key] > 0}
 
         # Add this variable to self.w
         name_w = "w_" + str(index)
-        self.w.append(LpVariable(name_w, e=e_dict))
+        self.w.append(LpVariable(name_w, lowBound= 0, e=e_dict))
         
                         
         # Compute objective coefficient of this variable (average rank)
@@ -270,8 +270,8 @@ class ModelColumnGen:
             print('ITERATION:', iterations)            
             if print_out:
                 print("\n ****** MASTER ****** \n")
-                for m in self.N_MATCH:
-                    print(self.M_list[m])
+                #for m in self.N_MATCH:
+                #    print(self.M_list[m])
 
             # String can't be used as the argument in solve method, so convert it like this:
             solver_function = globals()[solver]  # Retrieves the GUROBI function or class
@@ -287,9 +287,9 @@ class ModelColumnGen:
             self.obj_master.append(self.master.objective.value())
             print("Objective master: ", self.obj_master[-1])
 
-            if print_out:
-                for m in self.N_MATCH:
-                    print("w_", m, self.w[m].value())
+            #if print_out:
+            #    for m in self.N_MATCH:
+            #        print("w_", m, self.w[m].value())
             
             #### SOLVE PRICING ####
             # Get dual variables
@@ -305,15 +305,15 @@ class ModelColumnGen:
                         
                     duals[name_duals]=self.master.constraints[name_constr].pi
 
-            for m in self.N_MATCH:
-                name_GE = 'GE0_' + str(m)
-                duals[name_GE] = self.master.constraints[name_GE].pi
-            if print_out:
-                print(duals)
+            #for m in self.N_MATCH:
+            #    name_GE = 'GE0_' + str(m)
+            #    duals[name_GE] = self.master.constraints[name_GE].pi
+            #if print_out:
+            #    print(duals)
             
-            for name in duals:
-                if duals[name] < 0.00001:
-                    print(name, duals[name])
+            #for name in duals:
+            #    if duals[name] > 0:
+            #        print(name, duals[name])
                 
             # Modify objective function pricing problem
             # Careful, don't add constant terms, won't be taken into consideration!
@@ -330,8 +330,8 @@ class ModelColumnGen:
                         pricing_obj += self.M_pricing[i,pref_school] * duals[name]
                         #print('      school ', pref_school, duals[name])
 
-            if print_out:
-                print(pricing_obj)
+            #if print_out:
+            #    print(pricing_obj)
             #print("Duals Sum_to_one", duals["Sum_to_one"])
             #print("Duals", duals)
 
@@ -347,21 +347,26 @@ class ModelColumnGen:
             constant += duals['Sum_to_one']
                 # This constant term will not be printed in the objective function in the .lp file, I think
 
-            for m in self.N_MATCH:
-                name_GE = 'GE0_' + str(m)
-                constant += duals[name_GE]
+            #for m in self.N_MATCH:
+            #    name_GE = 'GE0_' + str(m)
+                #constant += duals[name_GE]
+            print("Constant term", constant)
             
             # Solve modified pricing problem
             if print_out:
                 print("\n ****** PRICING ****** \n")
+            
+            constant_str = str(constant)
 
 
             if print_log == True:  
-                self.pricing.solve(solver_function())
+                self.pricing.solve(solver_function(BestObjStop = -constant))
+                # Will stop the solver once a matching with objective function at least zero has been found
+                #self.pricing.solve(solver_function())
 
             else:
-                self.pricing.solve(solver_function(msg=False, logPath = 'Logfile_pricing.log'))
-
+                self.pricing.solve(solver_function(msg=False, logPath = 'Logfile_pricing.log',BestObjStop = -constant))
+                #self.pricing.solve(solver_function(msg=False, logPath = 'Logfile_pricing.log'))
             
 
             # If not infeasible:
@@ -378,33 +383,38 @@ class ModelColumnGen:
             
             #### EVALUATE SOLUTION ####
             if self.pricing.status != -1:            
-                if obj_pricing_var < 0:
+                if obj_pricing_var > 0:
                     # The solution of the master problem is not optimal over all weakly stable matchings
                     
                     # Add non-negativity constraint to the master for this new matching
-                    name = 'GE0_' + str(len(self.w))
-                    self.constraints[name] = LpConstraintVar(name, LpConstraintGE, 0)
-                    self.master += self.constraints[name]
+                    #name = 'GE0_' + str(len(self.w))
+                    #self.constraints[name] = LpConstraintVar(name, LpConstraintGE, 0)
+                    #self.master += self.constraints[name]
                     
                     # Add the matching found by the pricing problem to the master problem       
                     found_M = np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools))
                     for (i,j) in self.PAIRS:
                         found_M[i][j] = self.M_pricing[i,j].value()
+                    #print('Found_M', found_M)
                     
                     self.add_matching(found_M, len(self.w), print_out)
                     
                     self.M_list.append(found_M)
                     self.nr_matchings += 1
                     print("New number of matchings:", self.nr_matchings)
-                    self.N_MATCH = range(self.nr_matchings)
-                    
-                    print("Matching added.")
-                    if print_out:
-                        print(found_M)
 
-                    if iterations == 10:
-                        optimal = True
-                        print("Process terminated after ", iterations, " iterations.")
+                    self.N_MATCH = range(self.nr_matchings)
+
+                    # Exclude this matching from being find by the pricing problem in the future.
+                    self.pricing += lpSum([self.M_pricing[i,j] * found_M[i][j] for (i,j) in self.PAIRS]) <= lpSum([found_M[i][j] for (i,j) in self.PAIRS]) - 1, f"EXCL_M_{self.nr_matchings-1}"
+                    
+                    #print("Matching added.")
+                    #if print_out:
+                    #    print(found_M)
+
+                    #if iterations == 10:
+                    #    optimal = True
+                    #    print("Process terminated after ", iterations, " iterations.")
                     iterations = iterations + 1                
             
                 else:
@@ -419,7 +429,7 @@ class ModelColumnGen:
 
     def build_pricing(self, stab_constr: str, print_out: bool):
         # Create Pulp model for pricing problem
-        self.pricing = LpProblem("Pricing problem", LpMinimize)
+        self.pricing = LpProblem("Pricing problem", LpMaximize)
 
         # Decision variables
         self.M_pricing = LpVariable.dicts("M", [(i, j) for i, j in self.PAIRS], cat="Binary")
@@ -459,21 +469,21 @@ class ModelColumnGen:
         
         # Each student at most assigned to one school
         for i in self.STUD:
-            self.pricing += lpSum([self.M_pricing[i,j] for j in self.SCHOOLS if (i,j) in self.PAIRS]) <= 1, f"LESS_ONE_{l,i}"
+            self.pricing += lpSum([self.M_pricing[i,j] for j in self.SCHOOLS if (i,j) in self.PAIRS]) <= 1, f"LESS_ONE_{l}_{i}"
 
         # Capacities schools respected
         for j in self.SCHOOLS:
-            self.pricing += lpSum([self.M_pricing[i,j] for i in self.STUD if (i,j) in self.PAIRS]) <= self.MyData.cap[j], f"LESS_CAP_{l,j}"
+            self.pricing += lpSum([self.M_pricing[i,j] for i in self.STUD if (i,j) in self.PAIRS]) <= self.MyData.cap[j], f"LESS_CAP_{l}_{j}"
          
         # Exclude matchings that are already found:
         # Simple "no-good" cuts, where you sum matched student-school pairs for matching l, and force the sum to be strictly smaller
-        #for l in tqdm(self.N_MATCH, desc='Pricing exclude found matchings', unit='matchings', disable=not print_out):            
-        #    self.pricing += lpSum([self.M_pricing[i,j] * self.M_list[l][i][j] for (i,j) in self.PAIRS]) <= lpSum([self.M_list[l][i][j] for (i,j) in self.PAIRS]) - 1, f"EXCL_M_{l}"
+        for l in tqdm(self.N_MATCH, desc='Pricing exclude found matchings', unit='matchings', disable=not print_out):            
+            self.pricing += lpSum([self.M_pricing[i,j] * self.M_list[l][i][j] for (i,j) in self.PAIRS]) <= lpSum([self.M_list[l][i][j] for (i,j) in self.PAIRS]) - 1, f"EXCL_M_{l}"
         
 
     def pricing_opt_solution(self, avg_rank: int, print_out: str):
         # Optimal solution of master problem!
-        print("Optimal solution found! Best average rank: ", self.obj_master[-1])
+        print("Optimal solution found!\nBest average rank: ", self.obj_master[-1])
         print("Original average rank: ", avg_rank)
 
         if print_out:
