@@ -6,6 +6,7 @@ def gale_shapley(MyData: Data):
 
     Parameters:
     - An instance from the Data class
+    - Careful! Must contain strict priorities! (after tie-breaking!
 
     Returns:
     - A numpy array containing the assignment

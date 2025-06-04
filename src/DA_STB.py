@@ -1,24 +1,79 @@
 from .Assignment import *
 from .GaleShapley import gale_shapley
+from.ErdilErgin import *
 
 from numpy.random import default_rng
 import time
 import math
 import itertools
 
-def DA_STB(MyData: Data, n_iter: int, seed = 123456789, print_out = False):
+def DA_STB(MyData: Data, n_iter: int, DA_impl: str, seed = 123456789, print_out = False):
     """
-    Deferred Acceptance with single tie-breaking
+    Deferred Acceptance with single tie-breaking (my implementation)
 
     Parameters:
     - MyData: An instance from the Data class
     - n_iter: number of tie-breakings sampled
+    - DA_impl: string that determines which implementation is used 
+        - 'GS': Gale-Shapley as implemented by me
+        - 'EE': implementation by Erdil & Ergin (2008)
     - print_out: boolean to control output on the screen
 
     Returns:
     - An instance of the Assignment class
     """
 
+    DA_impl_list = ['GS', 'EE']
+    if DA_impl not in DA_impl_list:
+           raise ValueError(f"Invalid value: '{DA_impl}'. Allowed values are: {DA_impl_list}")
+
+    permut = generate_permutations_STB(MyData, n_iter, seed, print_out)
+
+    # For each of the permutations, break ties in the preferences and run Gale-Shapley algorithm on them
+    M_sum = np.zeros(shape=(MyData.n_stud, MyData.n_schools)) # Will contain the final random_assignment
+
+    # Keep track of the generated matchings in a set. 
+    # Only matchings that were not in the set yet will be added.
+    M_set = set()
+
+    for p in tqdm(permut, desc='Generate DA_STB', unit = 'perturb', disable= not print_out):
+        prior_new = generate_strict_prior_from_perturbation(MyData, p, print_out)
+                
+        # Compute DA matching for the new priorities after tie-breaking
+        Data_new_prior = Data(MyData.n_stud, MyData.n_schools, MyData.pref, prior_new, MyData.cap, MyData.ID_stud, MyData.ID_school, MyData.file_name)
+        if DA_impl == "GS":
+            M_computed = gale_shapley(Data_new_prior)
+        elif DA_impl == "EE":
+            # Change format of preferences and priorities
+            N = transform_pref_us_to_EE(Data_new_prior)
+            A = transform_prior_us_to_EE(Data_new_prior)
+            Q = MyData.cap
+            result = DA_Erdil_ergin(N, A, Q, False)
+
+            M_computed = transform_M_EE_to_us(Data_new_prior, result['stable_all'], print_out)
+
+        M_set.add(tuple(map(tuple, M_computed))) # Add found matching to the set of matchings
+            # You have to add it as a tuple of tuples, because otherwise Python cannot check whether it was already in the set.
+            # If later you want to use it as a numpy array again, just use np.array(tuple_of_tuples)
+        M_sum = M_sum + M_computed            
+        
+    M_sum = M_sum / n_iter
+
+    # Create an instance of the Assignment class
+    label = MyData.file_name + "_" + "DA_STB" + str(n_iter)
+    A = Assignment(MyData, M_sum, M_set, label)
+
+    return A
+
+
+
+def generate_permutations_STB(MyData: Data, n_iter: int, seed = 123456789, print_out = False):
+    """
+        Will create 'n_iter' permutations of the students
+
+        Returns a list 'permut' containing the permutations
+    """
+    
     if seed != 123456789:
         # Use seed in argument
         rng = default_rng(seed)
@@ -64,48 +119,25 @@ def DA_STB(MyData: Data, n_iter: int, seed = 123456789, print_out = False):
         print(f"Tie-breaking rules sampled: {n_iter}")
         # print(f"permut: {permut}")
 
-    # For each of the permutations, break ties in the preferences and run Gale-Shapley algorithm on them
-    M_sum = np.zeros(shape=(MyData.n_stud, MyData.n_schools)) # Will contain the final random_assignment
+    return permut
 
-    # Keep track of the generated matchings in a set. 
-    # Only matchings that were not in the set yet will be added.
-    M_set = set()
+def generate_strict_prior_from_perturbation(MyData: Data, permut: tuple, print_out = False):
+    prior_new = [] 
+    for j in range(len(MyData.prior)):
+        # Just add priorities if no ties:
+        if len(MyData.prior[j]) == MyData.n_stud:
+            prior_new.append(MyData.prior[j])
+        else:
+            prior_array = []
+            for k in range(len(MyData.prior[j])):
+                if isinstance(MyData.prior[j][k], tuple): # set of students who have same priorities
+                    # Reorder the students based on the permuation
+                    reordered_prior = list(sorted(MyData.prior[j][k], key=lambda x: permut.index(x)))
 
-    for p in tqdm(permut, desc='Generate DA_STB', unit = 'perturb', disable= not print_out):
-        prior_new = [] 
-        for j in range(len(MyData.prior)):
-            # Just add priorities if no ties:
-            if len(MyData.prior[j]) == MyData.n_stud:
-                prior_new.append(MyData.prior[j])
-            else:
-                prior_array = []
-                for k in range(len(MyData.prior[j])):
-                    if isinstance(MyData.prior[j][k], tuple): # set of students who have same priorities
-                        # Reorder the students based on the permuation
-                        reordered_prior = list(sorted(MyData.prior[j][k], key=lambda x: p.index(x)))
-
-                        # Add to prior_array
-                        for l in range(len(MyData.prior[j][k])):
-                            prior_array.append(reordered_prior[l])
-                    else:
-                        prior_array.append(MyData.prior[j][k])                        
-                prior_new.append(prior_array)
-                
-        # Compute DA matching for the new priorities after tie-breaking
-        Data_new_prior = Data(MyData.n_stud, MyData.n_schools, MyData.pref, prior_new, MyData.cap, MyData.ID_stud, MyData.ID_school, MyData.file_name)
-        M_computed = gale_shapley(Data_new_prior)
-
-        M_set.add(tuple(map(tuple, M_computed))) # Add found matching to the set of matchings
-            # You have to add it as a tuple of tuples, because otherwise Python cannot check whether it was already in the set.
-            # If later you want to use it as a numpy array again, just use np.array(tuple_of_tuples)
-        M_sum = M_sum + M_computed            
-        
-    M_sum = M_sum / n_iter
-
-    # Create an instance of the Assignment class
-    label = MyData.file_name + "_" + "DA_STB" + str(n_iter)
-    A = Assignment(MyData, M_sum, M_set, label)
-
-    return A
-
-    
+                    # Add to prior_array
+                    for l in range(len(MyData.prior[j][k])):
+                        prior_array.append(reordered_prior[l])
+                else:
+                    prior_array.append(MyData.prior[j][k])                        
+            prior_new.append(prior_array)
+    return prior_new

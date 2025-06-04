@@ -1,0 +1,622 @@
+Master: add decision variables: 100%|██████████| 856/856 [00:00<00:00, 1198.24var/s]
+
+Average rank before optimization: 1.7808000000000004.
+
+
+Pricing exclude found matchings: 100%|██████████| 856/856 [00:00<00:00, 873.91matchings/s]
+Number of matchings: 856
+ITERATION: 1
+
+ ****** MASTER ****** 
+
+Objective master:  1.6601750000000004
+Constant term 0.5749999999999962
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -5.7499999999999618e-01
+		Objective pricing:  0.6750000000000043
+New number of matchings: 857
+ITERATION: 2
+
+ ****** MASTER ****** 
+
+Objective master:  1.6601750000000004
+Constant term 0.5749999999999962
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -5.7499999999999618e-01
+		Objective pricing:  0.7750000000000006
+New number of matchings: 858
+ITERATION: 3
+
+ ****** MASTER ****** 
+
+Objective master:  1.6601750000000004
+Constant term 0.5749999999999962
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -5.7499999999999618e-01
+		Objective pricing:  0.5750000000000044
+New number of matchings: 859
+ITERATION: 4
+
+ ****** MASTER ****** 
+
+Objective master:  1.6601750000000004
+Constant term 0.5749999999999962
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -5.7499999999999618e-01
+		Objective pricing:  0.42499999999999993
+New number of matchings: 860
+ITERATION: 5
+
+ ****** MASTER ****** 
+
+Objective master:  1.6601750000000004
+Constant term 0.5749999999999962
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -5.7499999999999618e-01
+		Objective pricing:  0.45000000000000057
+New number of matchings: 861
+ITERATION: 6
+
+ ****** MASTER ****** 
+
+Objective master:  1.6601750000000004
+Constant term 0.5749999999999962
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -5.7499999999999618e-01
+		Objective pricing:  0.6250000000000032
+New number of matchings: 862
+ITERATION: 7
+
+ ****** MASTER ****** 
+
+Objective master:  1.6601750000000004
+Constant term 0.5749999999999962
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -5.7499999999999618e-01
+		Objective pricing:  0.4249999999999986
+New number of matchings: 863
+ITERATION: 8
+
+ ****** MASTER ****** 
+
+Objective master:  1.6601750000000004
+Constant term 0.5749999999999962
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -5.7499999999999618e-01
+		Objective pricing:  0.4000000000000029
+New number of matchings: 864
+ITERATION: 9
+
+ ****** MASTER ****** 
+
+Objective master:  1.6601750000000004
+Constant term 0.5749999999999962
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -5.7499999999999618e-01
+		Objective pricing:  0.5500000000000018
+New number of matchings: 865
+ITERATION: 10
+
+ ****** MASTER ****** 
+
+Objective master:  1.6601750000000004
+Constant term 0.5749999999999962
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -5.7499999999999618e-01
+		Objective pricing:  0.20000000000000134
+New number of matchings: 866
+ITERATION: 11
+
+ ****** MASTER ****** 
+
+Objective master:  1.6601750000000004
+Constant term 0.5749999999999962
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -5.7499999999999618e-01
+		Objective pricing:  0.32500000000000295
+New number of matchings: 867
+ITERATION: 12
+
+ ****** MASTER ****** 
+
+Objective master:  1.6601750000000004
+Constant term 0.5749999999999962
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -5.7499999999999618e-01
+		Objective pricing:  0.6000000000000042
+New number of matchings: 868
+ITERATION: 13
+
+ ****** MASTER ****** 
+
+Objective master:  1.6601750000000004
+Constant term 0.5749999999999962
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -5.7499999999999618e-01
+		Objective pricing:  0.27500000000000296
+New number of matchings: 869
+ITERATION: 14
+
+ ****** MASTER ****** 
+
+Objective master:  1.6601750000000004
+Constant term 0.5749999999999962
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -5.7499999999999618e-01
+		Objective pricing:  0.5250000000000034
+New number of matchings: 870
+ITERATION: 15
+
+ ****** MASTER ****** 
+
+Objective master:  1.6601750000000004
+Constant term 0.5749999999999962
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -5.7499999999999618e-01
+		Objective pricing:  0.7000000000000033
+New number of matchings: 871
+ITERATION: 16
+
+ ****** MASTER ****** 
+
+Objective master:  1.6601750000000004
+Constant term 0.5749999999999962
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -5.7499999999999618e-01
+		Objective pricing:  0.6499999999999998
+New number of matchings: 872
+ITERATION: 17
+
+ ****** MASTER ****** 
+
+Objective master:  1.6601750000000004
+Constant term 0.5749999999999962
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -5.7499999999999618e-01
+		Objective pricing:  0.5749999999999996
+New number of matchings: 873
+ITERATION: 18
+
+ ****** MASTER ****** 
+
+Objective master:  1.6601750000000004
+Constant term 0.5749999999999962
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -5.7499999999999618e-01
+		Objective pricing:  0.6750000000000033
+New number of matchings: 874
+ITERATION: 19
+
+ ****** MASTER ****** 
+
+Objective master:  1.6601750000000004
+Constant term 0.5749999999999962
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -5.7499999999999618e-01
+		Objective pricing:  0.15000000000000324
+New number of matchings: 875
+ITERATION: 20
+
+ ****** MASTER ****** 
+
+Objective master:  1.6601750000000004
+Constant term 0.5749999999999962
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -5.7499999999999618e-01
+		Objective pricing:  0.2500000000000013
+New number of matchings: 876
+ITERATION: 21
+
+ ****** MASTER ****** 
+
+Objective master:  1.6601750000000004
+Constant term 0.5749999999999962
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -5.7499999999999618e-01
+		Objective pricing:  0.27500000000000263
+New number of matchings: 877
+ITERATION: 22
+
+ ****** MASTER ****** 
+
+Objective master:  1.6601750000000004
+Constant term 0.5749999999999962
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -5.7499999999999618e-01
+		Objective pricing:  0.20000000000000284
+New number of matchings: 878
+ITERATION: 23
+
+ ****** MASTER ****** 
+
+Objective master:  1.6601750000000002
+Constant term 0.575
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -0.575
+		Objective pricing:  0.1500000000000014
+New number of matchings: 879
+ITERATION: 24
+
+ ****** MASTER ****** 
+
+Objective master:  1.6601750000000002
+Constant term 0.575
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -0.575
+		Objective pricing:  0.6000000000000009
+New number of matchings: 880
+ITERATION: 25
+
+ ****** MASTER ****** 
+
+Objective master:  1.6601749999999997
+Constant term 0.5750000000000014
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -5.7500000000000140e-01
+		Objective pricing:  0.1749999999999985
+New number of matchings: 881
+ITERATION: 26
+
+ ****** MASTER ****** 
+
+Objective master:  1.6601749999999997
+Constant term 0.5750000000000014
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -5.7500000000000140e-01
+		Objective pricing:  0.32500000000000207
+New number of matchings: 882
+ITERATION: 27
+
+ ****** MASTER ****** 
+
+Objective master:  1.6601749999999997
+Constant term 0.5750000000000014
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -5.7500000000000140e-01
+		Objective pricing:  0.2250000000000012
+New number of matchings: 883
+ITERATION: 28
+
+ ****** MASTER ****** 
+
+Objective master:  1.6601749999999997
+Constant term 0.5750000000000014
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -5.7500000000000140e-01
+		Objective pricing:  0.5500000000000056
+New number of matchings: 884
+ITERATION: 29
+
+ ****** MASTER ****** 
+
+Objective master:  1.6601749999999997
+Constant term 0.5750000000000014
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -5.7500000000000140e-01
+		Objective pricing:  0.3750000000000022
+New number of matchings: 885
+ITERATION: 30
+
+ ****** MASTER ****** 
+
+Objective master:  1.6601749999999997
+Constant term 0.5750000000000014
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -5.7500000000000140e-01
+		Objective pricing:  0.3250000000000013
+New number of matchings: 886
+ITERATION: 31
+
+ ****** MASTER ****** 
+
+Objective master:  1.6601749999999997
+Constant term 0.5750000000000014
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -5.7500000000000140e-01
+		Objective pricing:  0.7500000000000022
+New number of matchings: 887
+ITERATION: 32
+
+ ****** MASTER ****** 
+
+Objective master:  1.659875
+Constant term 0.3250000000000006
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -3.2500000000000062e-01
+		Objective pricing:  0.4250000000000018
+New number of matchings: 888
+ITERATION: 33
+
+ ****** MASTER ****** 
+
+Objective master:  1.659875
+Constant term 0.3250000000000006
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -3.2500000000000062e-01
+		Objective pricing:  0.025000000000001632
+New number of matchings: 889
+ITERATION: 34
+
+ ****** MASTER ****** 
+
+Objective master:  1.659875
+Constant term 0.3250000000000006
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -3.2500000000000062e-01
+		Objective pricing:  0.6250000000000017
+New number of matchings: 890
+ITERATION: 35
+
+ ****** MASTER ****** 
+
+Objective master:  1.659875
+Constant term 0.3250000000000006
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -3.2500000000000062e-01
+		Objective pricing:  0.025000000000000078
+New number of matchings: 891
+ITERATION: 36
+
+ ****** MASTER ****** 
+
+Objective master:  1.659875
+Constant term 0.3250000000000006
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -3.2500000000000062e-01
+		Objective pricing:  0.22500000000000267
+New number of matchings: 892
+ITERATION: 37
+
+ ****** MASTER ****** 
+
+Objective master:  1.659875
+Constant term 0.3250000000000006
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -3.2500000000000062e-01
+		Objective pricing:  0.1500000000000039
+New number of matchings: 893
+ITERATION: 38
+
+ ****** MASTER ****** 
+
+Objective master:  1.659875
+Constant term 0.3250000000000006
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -3.2500000000000062e-01
+		Objective pricing:  0.12500000000000466
+New number of matchings: 894
+ITERATION: 39
+
+ ****** MASTER ****** 
+
+Objective master:  1.659875
+Constant term 0.3250000000000006
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -3.2500000000000062e-01
+		Objective pricing:  0.5500000000000028
+New number of matchings: 895
+ITERATION: 40
+
+ ****** MASTER ****** 
+
+Objective master:  1.659875
+Constant term 0.3250000000000006
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -3.2500000000000062e-01
+		Objective pricing:  0.5500000000000019
+New number of matchings: 896
+ITERATION: 41
+
+ ****** MASTER ****** 
+
+Objective master:  1.659875
+Constant term 0.3250000000000006
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -3.2500000000000062e-01
+		Objective pricing:  0.32500000000000284
+New number of matchings: 897
+ITERATION: 42
+
+ ****** MASTER ****** 
+
+Objective master:  1.659875
+Constant term 0.3250000000000006
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -3.2500000000000062e-01
+		Objective pricing:  0.25000000000000233
+New number of matchings: 898
+ITERATION: 43
+
+ ****** MASTER ****** 
+
+Objective master:  1.659875
+Constant term 0.32500000000000095
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -3.2500000000000095e-01
+		Objective pricing:  0.14999999999999492
+New number of matchings: 899
+ITERATION: 44
+
+ ****** MASTER ****** 
+
+Objective master:  1.659875
+Constant term 0.32500000000000095
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -3.2500000000000095e-01
+		Objective pricing:  0.3249999999999952
+New number of matchings: 900
+ITERATION: 45
+
+ ****** MASTER ****** 
+
+Objective master:  1.659875
+Constant term 0.32500000000000095
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -3.2500000000000095e-01
+		Objective pricing:  0.2999999999999948
+New number of matchings: 901
+ITERATION: 46
+
+ ****** MASTER ****** 
+
+Objective master:  1.659875
+Constant term 0.32500000000000095
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -3.2500000000000095e-01
+		Objective pricing:  0.4499999999999952
+New number of matchings: 902
+ITERATION: 47
+
+ ****** MASTER ****** 
+
+Objective master:  1.659875
+Constant term 0.32500000000000095
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -3.2500000000000095e-01
+		Objective pricing:  0.32499999999999213
+New number of matchings: 903
+ITERATION: 48
+
+ ****** MASTER ****** 
+
+Objective master:  1.659875
+Constant term 0.32500000000000095
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -3.2500000000000095e-01
+		Objective pricing:  0.24999999999999784
+New number of matchings: 904
+ITERATION: 49
+
+ ****** MASTER ****** 
+
+Objective master:  1.659875
+Constant term 0.32500000000000095
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -3.2500000000000095e-01
+		Objective pricing:  0.04999999999999821
+New number of matchings: 905
+ITERATION: 50
+
+ ****** MASTER ****** 
+
+Objective master:  1.659875
+Constant term 0.32500000000000095
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -3.2500000000000095e-01
+		Objective pricing:  0.1499999999999982
+New number of matchings: 906
+ITERATION: 51
+
+ ****** MASTER ****** 
+
+Objective master:  1.659875
+Constant term 0.32500000000000095
+
+ ****** PRICING ****** 
+
+Set parameter BestObjStop to value -3.2500000000000095e-01
+		Objective pricing:  -4.385380947269368e-15
+Optimal solution found!
+Best average rank:  1.659875
+Original average rank:  1.7808000000000004
+Objective pricing problem:  -4.385380947269368e-15
