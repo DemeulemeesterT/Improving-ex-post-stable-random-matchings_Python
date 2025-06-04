@@ -112,7 +112,7 @@ def Ergin_Erdil_Alg(N, A, Q):
     ## Ergin-Erdil Algorithm
     A_tb = TB(A, tie_break)
     rv = DA_Erdil_ergin(N, A_tb, Q)
-    rv = SIC(N, A, Q, rv['stable_all'], rv['proposeoffset'])
+    rv = SIC_EE(N, A, Q, rv['stable_all'], rv['proposeoffset'])
 ##    if rv['iterations'] > 0 :
 ##        print N
 ##        print A_tb
@@ -243,7 +243,19 @@ def gale_shapley_Erdil_Ergin(N, A, Q, print_out=False):
 
 ########## STABLE IMPROVEMENT CYCLES ###########
 
-def SIC(N, A, Q, allocation, pro_off, print_out = False):
+def SIC_EE(N, A, Q, allocation, pro_off, print_out = False):
+    """
+        Careful: always imput all variables in the format of EE (if necessary, use transformation functions)
+
+        This function finds stable improvement cycles
+
+        N = preferences
+        A = priorities
+        Q = capacities
+        allocation
+        'pro_off' contains the preferences of the assigned objects for the agents
+
+    """
     all = deepcopy(allocation)
     pro = construct_proposals(N, A, pro_off)
 

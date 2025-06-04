@@ -12,10 +12,11 @@ class Assignment:
     Functions:
     1. __init__(): Initializes the assignment with provided data and computes preference rankings.
     2. visualize(): Generates visualizations of the assignment and ranked preferences using heatmaps.
-    3. export_assignment(): Saves the assignment data to a structured CSV file.
+    3. statistics(): Calculate statistics about the assignment, such as average rank
+    4. export_assignment(): Saves the assignment data to a structured CSV file.
     """
 
-    def __init__(self, MyData: Data, p: np.ndarray, M_set_in = None, label = None):
+    def __init__(self, MyData: Data, p: np.ndarray, M_set_in = None, w_set_in = None, label = None):
         """
         Initializes the assignment object with the given data, computes a ranked version of the assignment 
         based on student preferences, and exports the assignment to a CSV file.
@@ -23,7 +24,8 @@ class Assignment:
         - MyData (Data): The Data object containing student and school information.
         - p (np.ndarray): The assignment matrix indicating allocations of students to schools.
         - label (str, optional): A label for the assignment, used for file naming and visualization. Defaults to None.
-        - M: the set of generated matchings (if any) to obtain the assignment
+        - M_set_in: the set of generated matchings (if any) to obtain the assignment
+        - w_set_in: the set of weights used for the matchings to obtain the assignment (if any)
         """
         # self.file_name = MyData.file_name[:-4] 
             # Use this when importing .csv files, for example
@@ -31,6 +33,7 @@ class Assignment:
         self.MyData = copy.deepcopy(MyData)
         self.assignment = copy.deepcopy(p)
         self.M_set = copy.deepcopy(M_set_in)
+        self.w_set = copy.deepcopy(w_set_in)
         self.label = label
         if label == None:
             self.label = ""
@@ -114,6 +117,29 @@ class Assignment:
         
         plt.figure()
     
+    def statistics(self, print_out = False):
+        # Calculate statistics about the assignment (such as average rank)
+
+        # Tuple with all student-school pairs that are preferred to outside option
+        # This tuple contains the INDICES of the students and the pairs, and not their original names
+        PAIRS = []
+        for i in range(0, self.MyData.n_stud):
+            for j in range(0,len(self.MyData.pref[i])):
+                # Convert pref[i][k] (school ID as string) to column index
+                col_index = self.MyData.ID_school.index(self.MyData.pref[i][j])
+                PAIRS.append((i,col_index))   
+
+        # Compute average rank of current assignment
+        avg_rank = 0
+        for (i,j) in PAIRS:
+            avg_rank += self.assignment[i,j] * (self.MyData.rank_pref[i,j] + 1) # + 1 because the indexing starts from zero
+        # Average
+        avg_rank = avg_rank/self.MyData.n_stud
+        if print_out == True:   
+            print(f"\nAverage rank: {avg_rank}.\n")
+
+        return avg_rank
+
     # Save the assignment to the correct subdirectory
     def export_assignment(self):
         if os.path.exists("Results") == False:

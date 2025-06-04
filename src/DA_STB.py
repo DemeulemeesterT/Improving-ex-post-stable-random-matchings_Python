@@ -1,5 +1,6 @@
 from .Assignment import *
 from .GaleShapley import gale_shapley
+from .SICs import SIC
 from.ErdilErgin import *
 
 from numpy.random import default_rng
@@ -7,7 +8,7 @@ import time
 import math
 import itertools
 
-def DA_STB(MyData: Data, n_iter: int, DA_impl: str, seed = 123456789, print_out = False):
+def DA_STB(MyData: Data, n_iter: int, DA_impl: str, bool_SIC: bool, seed = 123456789, print_out = False):
     """
     Deferred Acceptance with single tie-breaking (my implementation)
 
@@ -17,6 +18,7 @@ def DA_STB(MyData: Data, n_iter: int, DA_impl: str, seed = 123456789, print_out 
     - DA_impl: string that determines which implementation is used 
         - 'GS': Gale-Shapley as implemented by me
         - 'EE': implementation by Erdil & Ergin (2008)
+    - bool_SIC: boolean that determines whether or not we immediately find SICs as well
     - print_out: boolean to control output on the screen
 
     Returns:
@@ -35,6 +37,7 @@ def DA_STB(MyData: Data, n_iter: int, DA_impl: str, seed = 123456789, print_out 
     # Keep track of the generated matchings in a set. 
     # Only matchings that were not in the set yet will be added.
     M_set = set()
+    w_set = {} # Contains the weights of the matchings in M_set. Each key of this set is a matching in M_set
 
     for p in tqdm(permut, desc='Generate DA_STB', unit = 'perturb', disable= not print_out):
         prior_new = generate_strict_prior_from_perturbation(MyData, p, print_out)
@@ -51,21 +54,30 @@ def DA_STB(MyData: Data, n_iter: int, DA_impl: str, seed = 123456789, print_out 
             result = DA_Erdil_ergin(N, A, Q, False)
 
             M_computed = transform_M_EE_to_us(Data_new_prior, result['stable_all'], print_out)
+        
+        # Compute SICs, if desired
+        if bool_SIC:
+            M_computed = SIC(Data_new_prior, M_computed, False)
 
         M_set.add(tuple(map(tuple, M_computed))) # Add found matching to the set of matchings
             # You have to add it as a tuple of tuples, because otherwise Python cannot check whether it was already in the set.
             # If later you want to use it as a numpy array again, just use np.array(tuple_of_tuples)
+       
+        # Take note of the weight of this matching (depending on whether it was found before)
+        key = tuple(map(tuple, M_computed))
+        if key in w_set:
+            w_set[key] = w_set[key] + 1/n_iter
+        else:
+            w_set[key] = 1/n_iter
         M_sum = M_sum + M_computed            
         
     M_sum = M_sum / n_iter
 
     # Create an instance of the Assignment class
     label = MyData.file_name + "_" + "DA_STB" + str(n_iter)
-    A = Assignment(MyData, M_sum, M_set, label)
+    A = Assignment(MyData, M_sum, M_set, w_set, label)
 
     return A
-
-
 
 def generate_permutations_STB(MyData: Data, n_iter: int, seed = 123456789, print_out = False):
     """
