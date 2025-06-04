@@ -167,6 +167,11 @@ def DA_Erdil_ergin(N, A, Q, print_out = False):
     return {'stable_all' : all, 'proposeoffset' : pro_off}
 
 def gale_shapley_Erdil_Ergin(N, A, Q, print_out=False):
+    """
+        Returns object with two elements
+            'stable_all': this is list with matching 
+            'proposeoffset': contains the preferences of the objects to which the agents are assigned (indexed from 0)
+    """
     kickedouts = list(range(len(N)))
     proposeoffset = [0] * len(N)
     allocation = []
