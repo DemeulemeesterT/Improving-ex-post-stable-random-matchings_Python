@@ -202,7 +202,7 @@ class Model:
         return self.Xassignment
 
 
-    def Improve_rank(self, print_out: str):
+    def Improve_rank(self, print_out: bool):
         """
         Creates and solves formulation to minimize the expected rank while ensuring the found random matching is ex-post stable.
         """
@@ -256,7 +256,7 @@ class Model:
                 self.model += (lin >= 0, name)
 
 
-    def Max_Stable_Fraction(self, print_out: str):
+    def Max_Stable_Fraction(self, print_out: bool):
         # Objective function
         obj = LpAffineExpression()
         for l in self.N_MATCH:
