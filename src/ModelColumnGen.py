@@ -26,19 +26,21 @@ class ModelColumnGen:
     
     # Used this example as a template for Pulp: https://coin-or.github.io/pulp/CaseStudies/a_sudoku_problem.html
     
-    def __init__(self, MyData: Data, p: Assignment, print_out: bool):
+    def __init__(self, MyData: Data, p: Assignment, p_DA: np.ndarray, print_out: bool):
         """
         Initialize an instance of Model.
 
         Args:
             MyData (type: Data): instance of class Data.
-            p (type: Assignment): instance of class Assignment.
+            p (type: Assignment): instance of class Assignment (possibly including SICs). This will be used for warm start solution
+            p_DA (type: np.ndarray): this is the probabilistic assignment which we want to sd_dominate
             print_out (type: bool): boolean that controls which output is printed.
             nr_matchings (optional): number of matchings used in the decomposition, optional parameter that defaults to n_students * n_schools + 1
 
         """
         self.MyData = copy.deepcopy(MyData)
         self.p = copy.deepcopy(p)
+        self.p_DA = copy.deepcopy(p_DA)
 
         # Create the pulp model
         # 'self.master' refers to master problem
@@ -118,7 +120,7 @@ class ModelColumnGen:
                 original_p = 0
                 for k in range(j+1):
                     pref_school = self.MyData.pref_index[i][k]
-                    original_p += self.p.assignment[i,pref_school]
+                    original_p += self.p_DA[i,pref_school]
                 name = "FOSD_" +  str(self.MyData.ID_stud[i]) + "_" + str(school_name)
                 self.constraints[name]=LpConstraintVar(name, LpConstraintGE, original_p)
 
@@ -158,6 +160,14 @@ class ModelColumnGen:
         #        self.master.addVariableToConstraints(self.w[m], {self.constraints[c], 1})
 
         self.master.writeLP("TestColumnFormulation.lp")
+
+        
+        # Set the warm start solution as the decomposition found after SICs
+        for m in self.N_MATCH:
+            # Find matching (because w_set is a set and not subscriptable)
+            M = self.M_list[m]
+            self.w[m].setInitialValue(self.p.w_set[M])
+        
         
         
       
@@ -213,11 +223,16 @@ class ModelColumnGen:
         #self.master.writeLP("TestColumnFormulation.lp")
 
 
+
+
         
     def Solve(self, stab_constr: str, solver: str, print_log: str, print_out: bool):
         """
         Solves the formulation using column generation.
         Returns an instance from the Assignment class.
+
+        Note that, if you create an object of ModelColumnGen using an assignment object containing SICs already,
+        then those will be the matchings that are used.
 
         Args:
             stab_constr (str): controls which type of stability constraints are used.
@@ -227,13 +242,21 @@ class ModelColumnGen:
             print_out (bool): boolean that controls which output is printed.
         """
         # Compute average rank of current assignment
+        avg_rank_DA = 0
+        for (i,j) in self.PAIRS:
+            avg_rank_DA += self.p_DA[i,j] * (self.MyData.rank_pref[i,j] + 1) # + 1 because the indexing starts from zero
+        # Average
+        avg_rank_DA = avg_rank_DA/self.MyData.n_stud
+        #if print_out == True:  
+
         avg_rank = 0
         for (i,j) in self.PAIRS:
             avg_rank += self.p.assignment[i,j] * (self.MyData.rank_pref[i,j] + 1) # + 1 because the indexing starts from zero
         # Average
         avg_rank = avg_rank/self.MyData.n_stud
         #if print_out == True:   
-        print(f"\nAverage rank before optimization: {avg_rank}.\n\n")
+        print(f"\nAverage rank DA : {avg_rank_DA}.\n")
+        print(f"\nAverage rank warm start solution : {avg_rank}.\n\n")
         
         
         # Check that strings-arguments are valid
@@ -275,12 +298,12 @@ class ModelColumnGen:
 
             # String can't be used as the argument in solve method, so convert it like this:
             solver_function = globals()[solver]  # Retrieves the GUROBI function or class
-            
+        
             # Solve the formulation
             if print_log == False:
-                self.master.solve(solver_function(msg = False, logPath = "Logfile_master.log"))
+                self.master.solve(solver_function(msg = False, logPath = "Logfile_master.log", warmStart = True))
             else:
-                self.master.solve(solver_function(msg = True))
+                self.master.solve(solver_function(msg = True, warmStart = True))
             #self.model.solve(GUROBI_CMD(keepFiles=True, msg=True, options=[("IISFind", 1)]))
             
             # Get objective value master problem
@@ -419,10 +442,10 @@ class ModelColumnGen:
             
                 else:
                     optimal = True  
-                    return self.pricing_opt_solution(avg_rank, print_out)     
+                    return self.pricing_opt_solution(avg_rank_DA, avg_rank, print_out)     
             else:
                 optimal = True
-                return self.pricing_opt_solution(avg_rank, print_out)     
+                return self.pricing_opt_solution(avg_rank_DA, avg_rank, print_out)     
 
 
             
@@ -481,10 +504,12 @@ class ModelColumnGen:
             self.pricing += lpSum([self.M_pricing[i,j] * self.M_list[l][i][j] for (i,j) in self.PAIRS]) <= lpSum([self.M_list[l][i][j] for (i,j) in self.PAIRS]) - 1, f"EXCL_M_{l}"
         
 
-    def pricing_opt_solution(self, avg_rank: int, print_out: str):
+    def pricing_opt_solution(self, avg_rank_DA: int, avg_rank: int, print_out: str):
         # Optimal solution of master problem!
         print("Optimal solution found!\nBest average rank: ", self.obj_master[-1])
-        print("Original average rank: ", avg_rank)
+        print("Rank warm start solution: ", avg_rank)
+        print("Original average rank: ", avg_rank_DA)
+      
 
         if print_out:
             if self.pricing.status == -1:
