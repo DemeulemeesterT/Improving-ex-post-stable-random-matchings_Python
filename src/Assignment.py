@@ -3,6 +3,7 @@ from .Data import *
 import seaborn as sns
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
+import statistics
 
 class Assignment:
     """
@@ -26,6 +27,7 @@ class Assignment:
         - label (str, optional): A label for the assignment, used for file naming and visualization. Defaults to None.
         - M_set_in: the set of generated matchings (if any) to obtain the assignment
         - w_set_in: the set of weights used for the matchings to obtain the assignment (if any)
+            (w_set should be a dictionary)
         """
         # self.file_name = MyData.file_name[:-4] 
             # Use this when importing .csv files, for example
@@ -163,3 +165,76 @@ class Assignment:
         
     #    return s
         
+
+
+    def compare(self, benchmark: np.ndarray, print_out = False):
+        """
+        Compares the obtained assignment with respect to a benchmark assignment on several criteria
+        """
+
+        # Number of agents with improvements
+        students_improving = [False] * self.MyData.n_stud
+        for i in range(self.MyData.n_stud):
+            sd_dominating = True # Will become False if new is not sd-dominating old
+            sum_new = 0
+            sum_old = 0
+            better = False # True if new is better at least at some point
+
+            for j in range(len(self.MyData.pref[i])):
+                school = self.MyData.pref_index[i][j]
+                sum_new = sum_new + self.assignment[i][school]
+                sum_old = sum_old + benchmark[i][school]
+                if sum_new > sum_old + 0.00001: 
+                    better = True
+                elif sum_new < sum_old - 0.00001:
+                    sd_dominating = False
+                    #print('Careful, student ', i, ' improves somewhere, but is not sd-dominating!', j, sum_new, sum_old )
+
+            
+            if (better == True) and (sd_dominating == True):
+                students_improving[i] = True
+                #print('Improving agent', i)
+
+        # Number of improving agents
+        n_students_improving = sum(students_improving)
+
+        # Expected increase in rank for the students
+        rank_increase_by_stud = [0] * self.MyData.n_stud
+        for i in range(self.MyData.n_stud):
+            if students_improving[i]:
+                old_rank = 0
+                new_rank = 0
+                for j in range(len(self.MyData.pref[i])):
+                    school = self.MyData.pref_index[i][j]
+                    old_rank = old_rank + (j+1) * benchmark[i][school]
+                    new_rank = new_rank + (j+1) * self.assignment[i][school]
+                rank_increase_by_stud[i] = old_rank - new_rank
+
+        # Average increase in rank, among improving students
+        average_rank_increase = 0
+        for i in range(self.MyData.n_stud):
+            if students_improving[i]:
+                average_rank_increase = rank_increase_by_stud[i] + average_rank_increase
+        average_rank_increase = average_rank_increase / n_students_improving
+
+
+        # Median increase in rank, among improving students
+        rank_improvements = []
+        for i in range(self.MyData.n_stud):
+            if students_improving[i]:
+                rank_improvements.append(rank_increase_by_stud[i])
+
+        median_rank_improvement = statistics.median(rank_improvements)
+
+        if print_out:
+            print("Number of improving studentss",n_students_improving)
+            print("Average rank improvement", average_rank_increase)
+            print("Median rank improvement", median_rank_improvement)
+
+
+        return {"students_improving": students_improving, "n_students_improving": n_students_improving,
+                'rank_increase_by_stud': rank_increase_by_stud, "average_rank_increase": average_rank_increase,
+                'median_rank_improvement': median_rank_improvement}
+    
+
+

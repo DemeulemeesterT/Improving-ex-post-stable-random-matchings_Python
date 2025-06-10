@@ -9,6 +9,8 @@ from .Assignment import *
 import pulp as pl
 from pulp import *
 
+import time
+
 import gurobipy
 
 # To check which solvers available on computer:
@@ -226,7 +228,7 @@ class ModelColumnGen:
 
 
         
-    def Solve(self, stab_constr: str, solver: str, print_log: str, print_out: bool):
+    def Solve(self, stab_constr: str, solver: str, print_log: str, time_limit, print_out: bool):
         """
         Solves the formulation using column generation.
         Returns an instance from the Assignment class.
@@ -271,6 +273,8 @@ class ModelColumnGen:
         if stab_constr not in stab_list:
            raise ValueError(f"Invalid value: '{stab_constr}'. Allowed values are: {stab_list}")        
 
+        self.time_limit_exceeded = False
+        self.time_limit = time_limit
 
         #### PRICING PROBLEM ####
         # Defined in separate function
@@ -288,6 +292,8 @@ class ModelColumnGen:
         # Create two empty arrays to store objective values of master and pricing problem
         self.obj_master = []
         self.obj_pricing = []
+
+        starting_time = time.monotonic()
 
         while (optimal == False):
             print('ITERATION:', iterations)            
@@ -309,6 +315,13 @@ class ModelColumnGen:
             # Get objective value master problem
             self.obj_master.append(self.master.objective.value())
             print("Objective master: ", self.obj_master[-1])
+
+            # Check if the time limit is exceeded
+            current_time = time.monotonic()
+            if current_time - starting_time > time_limit:
+                optimal = True
+                self.time_limit_exceeded = True
+                return self.pricing_opt_solution(avg_rank_DA, avg_rank, print_out) 
 
             #if print_out:
             #    for m in self.N_MATCH:
@@ -381,14 +394,19 @@ class ModelColumnGen:
             
             constant_str = str(constant)
 
+            # Add warm start to pricing problem by referring to previously found solution
+            for (i,j) in self.PAIRS:
+                self.M_pricing[(i,j)].setInitialValue(self.M_list[-1][i][j])
+            
+
 
             if print_log == True:  
-                self.pricing.solve(solver_function(BestObjStop = -constant))
+                self.pricing.solve(solver_function(BestObjStop = -constant +0.0001, warmStart = True))
                 # Will stop the solver once a matching with objective function at least zero has been found
                 #self.pricing.solve(solver_function())
 
             else:
-                self.pricing.solve(solver_function(msg=False, logPath = 'Logfile_pricing.log',BestObjStop = -constant))
+                self.pricing.solve(solver_function(msg=False, logPath = 'Logfile_pricing.log',BestObjStop = -constant + 0.0001, warmStart = True))
                 #self.pricing.solve(solver_function(msg=False, logPath = 'Logfile_pricing.log'))
             
 
@@ -439,7 +457,8 @@ class ModelColumnGen:
                     #    optimal = True
                     #    print("Process terminated after ", iterations, " iterations.")
                     iterations = iterations + 1                
-            
+
+                    
                 else:
                     optimal = True  
                     return self.pricing_opt_solution(avg_rank_DA, avg_rank, print_out)     
@@ -463,31 +482,67 @@ class ModelColumnGen:
             self.M_pricing[i, j].name = f"M_{student_name}_{school_name}"
 
         ### CONSTRAINTS ###
-        # Stability
-        for i in self.STUD:
-            for j in range(len(self.MyData.pref_index[i])):
-                current_school = self.MyData.pref_index[i][j]
-                lin = LpAffineExpression()
 
-                lin += self.MyData.cap[current_school] * self.M_pricing[i, current_school]
+        if stab_constr == 'TRAD':
+            # Stability
+            for i in self.STUD:
+                for j in range(len(self.MyData.pref_index[i])):
+                    current_school = self.MyData.pref_index[i][j]
+                    lin = LpAffineExpression()
 
-                # Add all schools that are at least as preferred as the j-ranked school by student i
-                for l in range(j):
-                    lin += self.MyData.cap[current_school] * self.M_pricing[i,self.MyData.pref_index[i][l]]
+                    lin += self.MyData.cap[current_school] * self.M_pricing[i, current_school]
+
+                    # Add all schools that are at least as preferred as the j-ranked school by student i
+                    for l in range(j):
+                        lin += self.MyData.cap[current_school] * self.M_pricing[i,self.MyData.pref_index[i][l]]
 
 
-                # Add terms based on priorities
-                prior_current = self.MyData.rank_prior[current_school][i]
-                for s in self.STUD:
-                    if s != i:
-                        # If current_school ranks student s higher than student i
-                        if self.MyData.rank_prior[current_school][s] <= self.MyData.rank_prior[current_school][i]:
-                            if (s, current_school) in self.PAIRS:
-                                lin += self.M_pricing[s,current_school]
+                    # Add terms based on priorities
+                    prior_current = self.MyData.rank_prior[current_school][i]
+                    for s in self.STUD:
+                        if s != i:
+                            # If current_school ranks student s higher than student i
+                            if self.MyData.rank_prior[current_school][s] <= self.MyData.rank_prior[current_school][i]:
+                                if (s, current_school) in self.PAIRS:
+                                    lin += self.M_pricing[s,current_school]
 
-                # Add to model:
-                name = "STAB_" + str(self.MyData.ID_stud[i]) + "_" + str(self.MyData.ID_school[current_school]) 
-                self.pricing += (lin >= self.MyData.cap[current_school], name) 
+                    # Add to model:
+                    name = "STAB_" + str(self.MyData.ID_stud[i]) + "_" + str(self.MyData.ID_school[current_school]) 
+                    self.pricing += (lin >= self.MyData.cap[current_school], name) 
+
+        elif stab_constr == "CUTOFF":
+            # Create decision variables cutoff scores, one for each school
+            # NOTICE: The score of a student for a school, is the rank of the priority group to which they belong on that school
+            # Contrary to the literature, all students with a LOWER score than the cutoff score will be admitted
+
+            # NOTICE as well: We slightly modify non-envy from paper Agoston et al. (2022)
+                # By removing the epsilon in constraints (6), we allow that some students from a priority group
+                # are assigned, while others from the same priority group are not assigned because of capacities
+                # This is the Irish system, and not the Hungarian or the Chilean (as they are called in that paper)
+            
+            self.t = LpVariable.dicts("t", [j for j in self.SCHOOLS], cat="Continuous")
+
+            # Auxiliary parameter that contains number of priority groups at each school
+            s_max = []
+            for j in self.SCHOOLS:
+                s_max.append(len(self.MyData.prior[j]))
+            
+
+            for (i,j) in self.PAIRS:
+                # Find priority group to which i belongs at school j
+                s_i_j = s_max[j]
+                for k in range(s_max[j]):
+                    if isinstance(self.MyData.prior[j][k], tuple): # When more than a single student in this element
+                        if i in self.MyData.prior_index[j][k]:
+                            s_i_j = k
+
+                self.pricing += ((1 - self.M_pricing[i][j]) * s_max[j] + s_i_j <= self.t[j])
+
+                #######################################################
+                #################### NOT FINISHED YET #################
+                #### How can some students in a priority be assigned ##
+                ## And some others not, using cutoff scores? ##########
+                #######################################################
 
         
         # Each student at most assigned to one school
@@ -500,23 +555,33 @@ class ModelColumnGen:
          
         # Exclude matchings that are already found:
         # Simple "no-good" cuts, where you sum matched student-school pairs for matching l, and force the sum to be strictly smaller
+        # Required, because many matchings have same objective value in pricing problem,
+            # and, sometimes, when a matching is added to the master and not immediately used, 
+            # the dual prices are the same or similar, and the matching could have been found again by the pricing problem
         for l in tqdm(self.N_MATCH, desc='Pricing exclude found matchings', unit='matchings', disable=not print_out):            
             self.pricing += lpSum([self.M_pricing[i,j] * self.M_list[l][i][j] for (i,j) in self.PAIRS]) <= lpSum([self.M_list[l][i][j] for (i,j) in self.PAIRS]) - 1, f"EXCL_M_{l}"
         
 
-    def pricing_opt_solution(self, avg_rank_DA: int, avg_rank: int, print_out: str):
-        # Optimal solution of master problem!
-        print("Optimal solution found!\nBest average rank: ", self.obj_master[-1])
+    def pricing_opt_solution(self, avg_rank_DA, avg_rank, print_out: str):
+        if self.time_limit_exceeded == False:  
+            # Optimal solution of master problem!
+            print("Optimal solution found!\nBest average rank: ", self.obj_master[-1])
+
+        else:
+            # Time limit exceeded
+            print('\nTime limit of ', self.time_limit, "seconds exceeded!\n")
+            print('Rank best found solution:', self.obj_master[-1])
+        
         print("Rank warm start solution: ", avg_rank)
         print("Original average rank: ", avg_rank_DA)
-      
 
         if print_out:
             if self.pricing.status == -1:
                 print('Pricing problem INFEASIBLE')
             else:
                 print('Objective pricing problem: ', self.obj_pricing[-1])
-                
+
+                    
         # Save the final solution
         # Create variables to store the solution in
         self.Xdecomp = [] # Matchings in the found decomposition
