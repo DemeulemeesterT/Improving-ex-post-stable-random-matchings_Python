@@ -16,6 +16,27 @@ import gurobipy
 # To check which solvers available on computer:
 # print(pl.listSolvers(onlyAvailable=True))
 
+class SolutionReport:
+    """
+    Will be output by Solve function. Will be saved using pickle, and analyzed afterwards
+    """
+    A: Assignment       # Contains the final assignment
+    A_SIC: Assignment   # Contains warm start solution (in general, SICs by Erdil & Ergin)
+    A_DA_prob: np.ndarray # Assignment probabilities to sd-dominate (in general, DA)
+    avg_ranks: dict     # Contains average ranks of several solutions along the process
+    obj_master: list    # Objective values of master in iterations
+    obj_pricing: list   # Objective values of pricing in iterations
+    n_iter: int         # Number of iterations
+    time_limit_exceeded: bool # Whether time limit is exceeded
+    optimal: bool       # Optimality guaranteed?
+    time: float         # Time used
+    Xdecomp: list       # Matchings in the found decomposition
+    Xdecomp_coeff: list # Weights of these matchings
+    #... 
+
+
+
+
 
 class ModelColumnGen: 
     """
@@ -244,21 +265,21 @@ class ModelColumnGen:
             print_out (bool): boolean that controls which output is printed.
         """
         # Compute average rank of current assignment
-        avg_rank_DA = 0
+        self.avg_rank_DA = 0
         for (i,j) in self.PAIRS:
-            avg_rank_DA += self.p_DA[i,j] * (self.MyData.rank_pref[i,j] + 1) # + 1 because the indexing starts from zero
+            self.avg_rank_DA += self.p_DA[i,j] * (self.MyData.rank_pref[i,j] + 1) # + 1 because the indexing starts from zero
         # Average
-        avg_rank_DA = avg_rank_DA/self.MyData.n_stud
+        self.avg_rank_DA = self.avg_rank_DA/self.MyData.n_stud
         #if print_out == True:  
 
-        avg_rank = 0
+        self.avg_rank = 0
         for (i,j) in self.PAIRS:
-            avg_rank += self.p.assignment[i,j] * (self.MyData.rank_pref[i,j] + 1) # + 1 because the indexing starts from zero
+            self.avg_rank += self.p.assignment[i,j] * (self.MyData.rank_pref[i,j] + 1) # + 1 because the indexing starts from zero
         # Average
-        avg_rank = avg_rank/self.MyData.n_stud
-        #if print_out == True:   
-        print(f"\nAverage rank DA : {avg_rank_DA}.\n")
-        print(f"\nAverage rank warm start solution : {avg_rank}.\n\n")
+        self.avg_rank = self.avg_rank/self.MyData.n_stud
+        if print_out:   
+            print(f"\nAverage rank DA : {self.avg_rank_DA}.\n")
+            print(f"\nAverage rank warm start solution : {self.avg_rank}.\n\n")
         
         
         # Check that strings-arguments are valid
@@ -286,7 +307,7 @@ class ModelColumnGen:
         optimal = False
         
         self.pricing.writeLP("PricingProblem.lp")
-        iterations = 1
+        self.iterations = 1
         print("Number of matchings:", self.nr_matchings)
 
         # Create two empty arrays to store objective values of master and pricing problem
@@ -296,7 +317,7 @@ class ModelColumnGen:
         starting_time = time.monotonic()
 
         while (optimal == False):
-            print('ITERATION:', iterations)            
+            print('ITERATION:', self.iterations)            
             if print_out:
                 print("\n ****** MASTER ****** \n")
                 #for m in self.N_MATCH:
@@ -314,14 +335,19 @@ class ModelColumnGen:
             
             # Get objective value master problem
             self.obj_master.append(self.master.objective.value())
-            print("Objective master: ", self.obj_master[-1])
+            if print_out:
+                print("Objective master: ", self.obj_master[-1])
+
+            # Get average rank of first iteration
+            if self.iterations == 1:
+                self.avg_rank_first_iter = self.obj_master[-1]
 
             # Check if the time limit is exceeded
             current_time = time.monotonic()
             if current_time - starting_time > time_limit:
                 optimal = True
                 self.time_limit_exceeded = True
-                return self.pricing_opt_solution(avg_rank_DA, avg_rank, print_out) 
+                return self.generate_solution_report(print_out)
 
             #if print_out:
             #    for m in self.N_MATCH:
@@ -453,18 +479,22 @@ class ModelColumnGen:
                     #if print_out:
                     #    print(found_M)
 
-                    #if iterations == 10:
+                    #if self.iterations == 10:
                     #    optimal = True
-                    #    print("Process terminated after ", iterations, " iterations.")
-                    iterations = iterations + 1                
+                    #    print("Process terminated after ", self.iterations, " iterations.")
+                    self.iterations = self.iterations + 1                
 
                     
                 else:
                     optimal = True  
-                    return self.pricing_opt_solution(avg_rank_DA, avg_rank, print_out)     
+                    current_time = time.monotonic()
+                    self.time_columnGen = current_time - starting_time
+                    return self.generate_solution_report(print_out)    
             else:
                 optimal = True
-                return self.pricing_opt_solution(avg_rank_DA, avg_rank, print_out)     
+                current_time = time.monotonic()
+                self.time_columnGen = current_time - starting_time
+                return self.generate_solution_report(print_out)     
 
 
             
@@ -563,6 +593,7 @@ class ModelColumnGen:
         
 
     def pricing_opt_solution(self, avg_rank_DA, avg_rank, print_out: str):
+        
         if self.time_limit_exceeded == False:  
             # Optimal solution of master problem!
             print("Optimal solution found!\nBest average rank: ", self.obj_master[-1])
@@ -605,3 +636,69 @@ class ModelColumnGen:
                 
         
         return self.Xassignment
+    
+    def generate_solution_report(self, print_out = False):
+        # Store everything in a solution report
+        S = SolutionReport()
+
+        if self.time_limit_exceeded == False:  
+            # Optimal solution of master problem!
+            S.optimal = True
+            S.time_limit_exceeded = False
+            S.time = self.time_columnGen
+            if print_out:
+                print("Optimal solution found!\nBest average rank: ", self.obj_master[-1])
+
+        else:
+            # Time limit exceeded
+            S.optimal = False
+            S.time_limit_exceeded = True
+            S.time = self.time_limit
+            if print_out:
+                print('\nTime limit of ', self.time_limit, "seconds exceeded!\n")
+                print('Rank best found solution:', self.obj_master[-1])
+
+        S.avg_ranks = {}
+        S.avg_ranks['first_iter']  = self.avg_rank_first_iter
+        S.avg_ranks['warm_start'] = self.avg_rank
+        S.avg_ranks['DA'] = self.avg_rank_DA
+
+        if print_out:
+            print("Rank first iteration: ", self.avg_rank_first_iter)
+            print("Rank warm start solution: ", self.avg_rank)
+            print("Original average rank: ", self.avg_rank_DA)
+
+        S.obj_master = self.obj_master
+        S.obj_pricing = self.obj_pricing
+
+        # Save the final solution
+        # Create variables to store the solution in
+        self.Xdecomp = [] # Matchings in the found decomposition
+        self.Xdecomp_coeff = [] # Weights of these matchings
+        zero = np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools))
+        self.Xassignment = Assignment(self.MyData, zero) # Contains the final assignment found by the model
+        
+        # Make sure assignment is empty in Xassignment
+        self.Xassignment.assignment = np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools))
+
+        # Store decomposition
+        self.Xdecomp = [] # Matchings in the found decomposition
+        self.Xdecomp_coeff = [] # Weights of these matchings
+
+        for l in self.N_MATCH:
+            self.Xdecomp.append(np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools)))
+            self.Xdecomp_coeff.append(self.w[l].varValue)
+            for (i,j) in self.PAIRS:
+                self.Xdecomp[-1][i,j] = self.M_list[l][i][j]
+                self.Xassignment.assignment[i,j] += self.w[l].varValue * self.M_list[l][i][j]
+        
+        S.Xdecomp = self.Xdecomp
+        S.Xdecomp_coeff = self.Xdecomp_coeff
+        S.A = self.Xassignment
+
+        S.A_SIC = copy.deepcopy(self.p)
+        S.A_DA_prob = copy.deepcopy(self.p_DA)
+
+        S.iter = self.iterations
+
+        return S
