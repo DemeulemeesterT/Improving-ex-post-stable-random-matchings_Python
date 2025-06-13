@@ -395,18 +395,18 @@ class ModelColumnGen:
             constant_str = str(constant)
 
             # Add warm start to pricing problem by referring to previously found solution
-            for (i,j) in self.PAIRS:
-                self.M_pricing[(i,j)].setInitialValue(self.M_list[-1][i][j])
+            #for (i,j) in self.PAIRS:
+            #    self.M_pricing[(i,j)].setInitialValue(self.M_list[-1][i][j])
             
 
 
             if print_log == True:  
-                self.pricing.solve(solver_function(BestObjStop = -constant +0.0001, warmStart = True))
+                self.pricing.solve(solver_function(BestObjStop = -constant +0.0001))
                 # Will stop the solver once a matching with objective function at least zero has been found
                 #self.pricing.solve(solver_function())
 
             else:
-                self.pricing.solve(solver_function(msg=False, logPath = 'Logfile_pricing.log',BestObjStop = -constant + 0.0001, warmStart = True))
+                self.pricing.solve(solver_function(msg=False, logPath = 'Logfile_pricing.log',BestObjStop = -constant + 0.0001))
                 #self.pricing.solve(solver_function(msg=False, logPath = 'Logfile_pricing.log'))
             
 
