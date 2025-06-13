@@ -1,16 +1,18 @@
 ## Written by Ozgur Sumer
 ## Based on code from Erdil & Ergin (2008, AER) paper: https://www.openicpsr.org/openicpsr/project/113247/version/V1/view
 
-from src.ErdilErgin import nonuniform_tie_break, uniform_tie_break
-from random import random, normalvariate
+from src.ErdilErgin import *
+import random
 import pylab as pl
 import math
+import time
 
 VERBOSE = False
 DISPLAY = False
 
 """
 The function DataGenEE() generates data according to the method by Erdil & Ergin, and outputs it in our format
+IMPORTANTLY, we also added a seed to make the data generation process more reproducible
 
 In this file, the following notation is used (I added examples for two schools and five students)
 - A: school priorities ([{0: 0, 1: 0, 2: 0, 3: 1, 4: 1}, {0: 1, 1: 1, 2: 1, 3: 0, 4: 0}])
@@ -24,16 +26,68 @@ In this file, the following notation is used (I added examples for two schools a
  When in doubt, run the test() function, which will plot the catchment areas, and print the student preferences
 """
 
+def DataGenEE(n_students: int, n_schools: int, alpha: float, beta: float, pref_list_length: int, print_data=False, seed=123456789):
+    """
+    Generate data according to Erdil & Ergin (2008).
 
+    Parameters:
+    - n_students: Number of students.
+    - n_schools: Number of schools.
+    - alpha, beta: Parameters to determine student preferences
+    - pref_list_length: length of the students preferences
+    - print_data: Whether to print the generated data.
+    - seed: Random seed for reproducibility.
+
+    Returns:
+    - An object of the class Data
+    """
+     
+    if seed == 123456789:
+        # Generate random seed 
+        # Create a seed based on the current time
+        seed = int(time.time() * 1000) % (2**32)  # Modulo 2^32 to ensure it's a valid seed
+
+    random.seed(seed) 
+
+    # Generate data output in Erdil & Ergin format:
+    param = {}
+    param['alpha'] = alpha
+    param['beta'] = beta
+
+    # Generate data
+    result = cor_gen(n_students, n_schools, pref_list_length, param)
+    N = result['N'] #pref
+    A = result['A'] #prior
+    Q = result['Q'] #cap
+
+    # Transform format
+    # Preferences & capacities: okay
+    A = transform_prior_EE_to_us(A)
+
+    stud =  list(range(n_students))
+    schools = list(range(n_schools))
+
+    name = str(n_students) + '_' + str(n_schools) + '_' + str(alpha) + '_' + str(beta) + '_' + str(seed)
+
+    MyData = Data(n_students, n_schools, N, A, Q, stud, schools, name)
+
+    return MyData
+
+def cor_gen(n, a, sq, param):
+    alpha = param.get('alpha', 0)
+    beta = param.get('beta', 0)
+    A,Q, extra = district_priorities(n, a)
+    N, U = correlated_student_preferences(n, a, sq, extra + [alpha, beta])
+    return {'N' : N, 'A' : A, 'Q' : Q, 'student_utilities' : U}   
 
 def gen_grid(n ,a):
     school_grid = []
     for school in range(a):
-        school_grid.append((random(), random()))
+        school_grid.append((random.random(), random.random()))
 
     student_grid = []
     for student in range(n):
-        student_grid.append((random(), random()))
+        student_grid.append((random.random(), random.random()))
 
     return school_grid, student_grid
 
@@ -61,7 +115,8 @@ def district_priorities(n, a, grid_fun = gen_grid):
     if n % a == 0:
         capacity = n/a
 
-    Q = (int) [capacity] * a # Originally this wasn't integer, but I modified this
+    Q = [capacity] * a
+    Q = [int(q) for q in Q] # Originally this wasn't integer, but I modified this
 
     school_grid, student_grid = grid_fun(n, a)
     s2d_map = student_to_district_map(school_grid, student_grid)
@@ -87,13 +142,13 @@ def district_priorities(n, a, grid_fun = gen_grid):
 def XY_normal_rv(n, a):
     Y = []
     for school in range(a):
-        Y.append(normalvariate(0,1))
+        Y.append(random.normalvariate(0,1))
 
     X = []
     for student in range(n):
         stu_rv = []
         for school in range(a):
-            stu_rv.append(normalvariate(0,1))
+            stu_rv.append(random.normalvariate(0,1))
         X.append(stu_rv)
 
     return X, Y
@@ -137,13 +192,6 @@ def correlated_student_preferences(n, a, sq, extra, XY_gen_fun = XY_normal_rv):
         print()
         
     return N, U
-
-def cor_gen(n, a, sq, param):
-    alpha = param.get('alpha', 0)
-    beta = param.get('beta', 0)
-    A,Q, extra = district_priorities(n, a)
-    N, U = correlated_student_preferences(n, a, sq, extra + [alpha, beta])
-    return {'N' : N, 'A' : A, 'Q' : Q, 'student_utilities' : U}
 
 def utility_stat(param):
     all_before = param['stable_all']
