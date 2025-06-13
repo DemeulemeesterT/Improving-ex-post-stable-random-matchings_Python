@@ -659,6 +659,7 @@ class ModelColumnGen:
                 print('Rank best found solution:', self.obj_master[-1])
 
         S.avg_ranks = {}
+        S.avg_ranks['result'] = self.obj_master[-1]
         S.avg_ranks['first_iter']  = self.avg_rank_first_iter
         S.avg_ranks['warm_start'] = self.avg_rank
         S.avg_ranks['DA'] = self.avg_rank_DA
@@ -694,7 +695,7 @@ class ModelColumnGen:
         
         S.Xdecomp = self.Xdecomp
         S.Xdecomp_coeff = self.Xdecomp_coeff
-        S.A = self.Xassignment
+        S.A = copy.deepcopy(self.Xassignment)
 
         S.A_SIC = copy.deepcopy(self.p)
         S.A_DA_prob = copy.deepcopy(self.p_DA)
