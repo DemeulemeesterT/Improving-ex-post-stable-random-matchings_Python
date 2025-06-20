@@ -13,6 +13,8 @@ import time
 
 import gurobipy
 
+from contextlib import redirect_stdout
+
 # To check which solvers available on computer:
 # print(pl.listSolvers(onlyAvailable=True))
 
@@ -20,6 +22,15 @@ class SolutionReport:
     """
     Will be output by Solve function. Will be saved using pickle, and analyzed afterwards
     """
+    # Information added to solution report during data generation
+    Data: Data          # Contains data instance
+    n_stud: int
+    n_schools: int
+    alpha: float        # alpha and beta will only be filled in when using data generation Erdil & Ergin
+    beta: float
+    seed: int
+
+    # Information added after solution is found
     A: Assignment       # Contains the final assignment
     A_SIC: Assignment   # Contains warm start solution (in general, SICs by Erdil & Ergin)
     A_DA_prob: np.ndarray # Assignment probabilities to sd-dominate (in general, DA)
@@ -28,6 +39,7 @@ class SolutionReport:
     obj_pricing: list   # Objective values of pricing in iterations
     n_iter: int         # Number of iterations
     time_limit_exceeded: bool # Whether time limit is exceeded
+    time_limit: int     # Time limit
     optimal: bool       # Optimality guaranteed?
     time: float         # Time used
     Xdecomp: list       # Matchings in the found decomposition
@@ -182,7 +194,7 @@ class ModelColumnGen:
         #    for c in range(1,len(self.constraints)):
         #        self.master.addVariableToConstraints(self.w[m], {self.constraints[c], 1})
 
-        self.master.writeLP("TestColumnFormulation.lp")
+        #self.master.writeLP("TestColumnFormulation.lp")
 
         
         # Set the warm start solution as the decomposition found after SICs
@@ -249,7 +261,7 @@ class ModelColumnGen:
 
 
         
-    def Solve(self, stab_constr: str, solver: str, print_log: str, time_limit, print_out: bool):
+    def Solve(self, stab_constr: str, solver: str, print_log: str, time_limit: int, print_out: bool):
         """
         Solves the formulation using column generation.
         Returns an instance from the Assignment class.
@@ -306,9 +318,10 @@ class ModelColumnGen:
         #### RUN COLUMN GENERATION PROCEDURE ####
         optimal = False
         
-        self.pricing.writeLP("PricingProblem.lp")
+        #self.pricing.writeLP("PricingProblem.lp")
         self.iterations = 1
-        print("Number of matchings:", self.nr_matchings)
+        if print_out:
+            print("Number of matchings:", self.nr_matchings)
 
         # Create two empty arrays to store objective values of master and pricing problem
         self.obj_master = []
@@ -317,9 +330,11 @@ class ModelColumnGen:
         starting_time = time.monotonic()
 
         while (optimal == False):
-            print('ITERATION:', self.iterations)            
             if print_out:
-                print("\n ****** MASTER ****** \n")
+                print('ITERATION:', self.iterations)            
+            if print_out:
+                if print_out:
+                    print("\n ****** MASTER ****** \n")
                 #for m in self.N_MATCH:
                 #    print(self.M_list[m])
 
@@ -402,7 +417,7 @@ class ModelColumnGen:
 
 
             
-            self.pricing.writeLP("PricingProblem.lp")
+            #self.pricing.writeLP("PricingProblem.lp")
 
             # Add the constant terms!
             constant = 0
@@ -412,7 +427,8 @@ class ModelColumnGen:
             #for m in self.N_MATCH:
             #    name_GE = 'GE0_' + str(m)
                 #constant += duals[name_GE]
-            print("Constant term", constant)
+            if print_out:
+                print("Constant term", constant)
             
             # Solve modified pricing problem
             if print_out:
@@ -427,12 +443,17 @@ class ModelColumnGen:
 
 
             if print_log == True:  
+                #self.pricing.solve(solver_function())
+                
                 self.pricing.solve(solver_function(BestObjStop = -constant +0.0001))
                 # Will stop the solver once a matching with objective function at least zero has been found
                 #self.pricing.solve(solver_function())
 
             else:
-                self.pricing.solve(solver_function(msg=False, logPath = 'Logfile_pricing.log',BestObjStop = -constant + 0.0001))
+                #self.pricing.solve(solver_function(msg=False, logPath = 'Logfile_pricing.log'))
+                with open(os.devnull, 'w') as devnull:
+                    with redirect_stdout(devnull):
+                        self.pricing.solve(solver_function(msg=False, logPath = 'Logfile_pricing.log',BestObjStop = -constant + 0.0001))
                 #self.pricing.solve(solver_function(msg=False, logPath = 'Logfile_pricing.log'))
             
 
@@ -441,7 +462,8 @@ class ModelColumnGen:
                 #print("Status code: ", self.pricing.status)
                 obj_pricing_var = self.pricing.objective.value() + constant
                 self.obj_pricing.append(obj_pricing_var)
-                print("\t\tObjective pricing: ", obj_pricing_var)
+                if print_out:
+                    print("\t\tObjective pricing: ", obj_pricing_var)
 
             #if print_out:
             if False:
@@ -468,7 +490,8 @@ class ModelColumnGen:
                     
                     self.M_list.append(found_M)
                     self.nr_matchings += 1
-                    print("New number of matchings:", self.nr_matchings)
+                    if print_out:
+                        print("New number of matchings:", self.nr_matchings)
 
                     self.N_MATCH = range(self.nr_matchings)
 
@@ -596,21 +619,26 @@ class ModelColumnGen:
         
         if self.time_limit_exceeded == False:  
             # Optimal solution of master problem!
-            print("Optimal solution found!\nBest average rank: ", self.obj_master[-1])
+            if print_out:
+                print("Optimal solution found!\nBest average rank: ", self.obj_master[-1])
 
         else:
             # Time limit exceeded
-            print('\nTime limit of ', self.time_limit, "seconds exceeded!\n")
-            print('Rank best found solution:', self.obj_master[-1])
+            if print_out:
+                print('\nTime limit of ', self.time_limit, "seconds exceeded!\n")
+                print('Rank best found solution:', self.obj_master[-1])
         
-        print("Rank warm start solution: ", avg_rank)
-        print("Original average rank: ", avg_rank_DA)
+        if print_out:
+            print("Rank warm start solution: ", avg_rank)
+            print("Original average rank: ", avg_rank_DA)
 
         if print_out:
             if self.pricing.status == -1:
-                print('Pricing problem INFEASIBLE')
+                if print_out:
+                    print('Pricing problem INFEASIBLE')
             else:
-                print('Objective pricing problem: ', self.obj_pricing[-1])
+                if print_out:
+                    print('Objective pricing problem: ', self.obj_pricing[-1])
 
                     
         # Save the final solution
@@ -646,6 +674,7 @@ class ModelColumnGen:
             S.optimal = True
             S.time_limit_exceeded = False
             S.time = self.time_columnGen
+            S.time_limit = self.time_limit
             if print_out:
                 print("Optimal solution found!\nBest average rank: ", self.obj_master[-1])
 
@@ -654,6 +683,8 @@ class ModelColumnGen:
             S.optimal = False
             S.time_limit_exceeded = True
             S.time = self.time_limit
+            S.time_limit = self.time_limit
+
             if print_out:
                 print('\nTime limit of ', self.time_limit, "seconds exceeded!\n")
                 print('Rank best found solution:', self.obj_master[-1])
