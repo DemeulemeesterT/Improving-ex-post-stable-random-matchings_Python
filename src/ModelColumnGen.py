@@ -35,7 +35,6 @@ class SolutionReport:
     A_SIC: Assignment   # Contains warm start solution (in general, SICs by Erdil & Ergin)
     A_DA_prob: np.ndarray # Assignment probabilities to sd-dominate (in general, DA)
     avg_ranks: dict     # Contains average ranks of several solutions along the process
-    indiv_rank_comparison: dict  # The comparison of the ranks that is obtained by the compare function in the Assignment class
     obj_master: list    # Objective values of master in iterations
     obj_pricing: list   # Objective values of pricing in iterations
     n_iter: int         # Number of iterations
@@ -747,7 +746,5 @@ class ModelColumnGen:
         S.A_DA_prob = copy.deepcopy(self.p_DA)
 
         S.iter = self.iterations
-
-        S.indiv_rank_comparison = S.A.compare(self.p_DA, False)
 
         return S
