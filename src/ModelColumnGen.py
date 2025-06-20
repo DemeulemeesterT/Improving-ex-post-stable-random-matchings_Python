@@ -35,6 +35,7 @@ class SolutionReport:
     A_SIC: Assignment   # Contains warm start solution (in general, SICs by Erdil & Ergin)
     A_DA_prob: np.ndarray # Assignment probabilities to sd-dominate (in general, DA)
     avg_ranks: dict     # Contains average ranks of several solutions along the process
+    indiv_rank_comparison: dict  # The comparison of the ranks that is obtained by the compare function in the Assignment class
     obj_master: list    # Objective values of master in iterations
     obj_pricing: list   # Objective values of pricing in iterations
     n_iter: int         # Number of iterations
@@ -440,12 +441,16 @@ class ModelColumnGen:
             #for (i,j) in self.PAIRS:
             #    self.M_pricing[(i,j)].setInitialValue(self.M_list[-1][i][j])
             
-
+            # Update time limit:
+            current_time = time.monotonic()
+            new_time_limit = max(time_limit - (current_time - starting_time), 0)
+            if print_out:
+                print('New time limit', new_time_limit)
 
             if print_log == True:  
                 #self.pricing.solve(solver_function())
                 
-                self.pricing.solve(solver_function(BestObjStop = -constant +0.0001))
+                self.pricing.solve(solver_function(timeLimit = new_time_limit, BestObjStop = -constant +0.0001))
                 # Will stop the solver once a matching with objective function at least zero has been found
                 #self.pricing.solve(solver_function())
 
@@ -453,12 +458,14 @@ class ModelColumnGen:
                 #self.pricing.solve(solver_function(msg=False, logPath = 'Logfile_pricing.log'))
                 with open(os.devnull, 'w') as devnull:
                     with redirect_stdout(devnull):
-                        self.pricing.solve(solver_function(msg=False, logPath = 'Logfile_pricing.log',BestObjStop = -constant + 0.0001))
+                        self.pricing.solve(solver_function(msg=False, timeLimit=new_time_limit, logPath = 'Logfile_pricing.log',BestObjStop = -constant + 0.0001))
                 #self.pricing.solve(solver_function(msg=False, logPath = 'Logfile_pricing.log'))
             
 
             # If not infeasible:
-            if self.pricing.status != -1:
+
+            
+            if self.pricing.status not in [0,-1]:
                 #print("Status code: ", self.pricing.status)
                 obj_pricing_var = self.pricing.objective.value() + constant
                 self.obj_pricing.append(obj_pricing_var)
@@ -471,7 +478,15 @@ class ModelColumnGen:
                     print("M[",i,j,'] =', self.M_pricing[i,j].value())
             
             #### EVALUATE SOLUTION ####
-            if self.pricing.status != -1:            
+            if print_out:
+                print('Pricing status', self.pricing.status)
+            if self.pricing.status == 0: # Time limit exceeded
+                self.time_limit_exceeded = True
+                optimal = False
+                self.time_columnGen = self.time_limit
+                return self.generate_solution_report(print_out) 
+            
+            elif self.pricing.status != -1:            
                 if obj_pricing_var > 0:
                     # The solution of the master problem is not optimal over all weakly stable matchings
                     
@@ -732,5 +747,7 @@ class ModelColumnGen:
         S.A_DA_prob = copy.deepcopy(self.p_DA)
 
         S.iter = self.iterations
+
+        S.indiv_rank_comparison = S.A.compare(self.p_DA, False)
 
         return S

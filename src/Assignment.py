@@ -215,7 +215,10 @@ class Assignment:
         for i in range(self.MyData.n_stud):
             if students_improving[i]:
                 average_rank_increase = rank_increase_by_stud[i] + average_rank_increase
-        average_rank_increase = average_rank_increase / n_students_improving
+        if n_students_improving > 0:
+            average_rank_increase = average_rank_increase / n_students_improving
+        else:
+            average_rank_increase = 0
 
 
         # Median increase in rank, among improving students
@@ -223,8 +226,10 @@ class Assignment:
         for i in range(self.MyData.n_stud):
             if students_improving[i]:
                 rank_improvements.append(rank_increase_by_stud[i])
-
-        median_rank_improvement = statistics.median(rank_improvements)
+        if n_students_improving > 0:
+            median_rank_improvement = statistics.median(rank_improvements)
+        else:
+            median_rank_improvement = 0
 
         if print_out:
             print("Number of improving studentss",n_students_improving)
