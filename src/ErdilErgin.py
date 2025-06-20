@@ -44,6 +44,8 @@ from copy import deepcopy
 def transform_pref_us_to_EE(MyData: Data, print_out = False):
     return MyData.pref_index
 
+# No need to transform from EE to us, we simply set pref to be identical to their format (which is what we called pref_index)    
+
 def transform_prior_us_to_EE(MyData: Data, print_out = False):
     W = []
     for j in range(MyData.n_schools):
@@ -60,6 +62,32 @@ def transform_prior_us_to_EE(MyData: Data, print_out = False):
         
         W.append(student_to_group)
     return W
+
+def transform_prior_EE_to_us(prior_in: list, print_out = False):
+    prior = []
+    for j in range(len(prior_in)):
+        # Group students by their priority group number
+        groups = {}
+        for student, group_num in prior_in[j].items():
+            if group_num not in groups:
+                groups[group_num] = []
+            groups[group_num].append(student)
+
+        # Convert to the original format
+        result = []
+        max_group = max(groups.keys())
+        
+        for group_num in range(0, max_group + 1):
+            if group_num in groups:
+                students = sorted(groups[group_num])  # Sort for consistent output
+                if len(students) == 1:
+                    # Single student - add as individual element
+                    result.append(students[0])
+                else:
+                    # Multiple students - add as tuple
+                    result.append(tuple(students))
+        prior.append(result)
+    return prior
 
 def transform_M_EE_to_us(MyData: Data, M_in: list, print_out=False):
     M_out = np.zeros(shape=(MyData.n_stud, MyData.n_schools))

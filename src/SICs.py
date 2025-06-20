@@ -17,7 +17,7 @@ def SIC_all_matchings(MyData: Data, A: Assignment, print_out = False):
     w_set = {}
 
     # Go through all matchings
-    for M in A.M_set:
+    for M in tqdm(A.M_set, desc='Compute SICs for matchings', unit = 'matching', disable= not print_out):
         # Weight of this matching in the assignment:
         w_original = A.w_set[M]
 

@@ -127,7 +127,8 @@ def generate_permutations_STB(MyData: Data, n_iter: int, seed = 123456789, print
     
     if print_out:
         print(f"Students in ties: {len(students_in_ties)}")
-        print(f"Tie-breaking rules needed: {n_STB}")
+        if MyData.n_stud <=100:
+            print(f"Tie-breaking rules needed: {n_STB}")
         print(f"Tie-breaking rules sampled: {n_iter}")
         # print(f"permut: {permut}")
 
