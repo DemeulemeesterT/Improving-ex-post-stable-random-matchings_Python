@@ -397,7 +397,7 @@ class ModelColumnGen:
             pricing_obj = LpAffineExpression()
             for i in self.STUD:
                 #print('student ', i)
-                for j in range(len(self.MyData.pref[i])):
+                for j in range(len(self.MyData.pref[i])): 
                     school_name = self.MyData.pref_index[i][j]
                     pricing_obj -= self.M_pricing[i,school_name] * (self.MyData.rank_pref[i,school_name]+ 1) / self.MyData.n_stud # + 1 because the indexing starts from zero
                     #print('  school ', school_name, -(self.MyData.rank_pref[i,school_name]+ 1) / self.MyData.n_stud)
@@ -449,7 +449,8 @@ class ModelColumnGen:
             if print_log == True:  
                 #self.pricing.solve(solver_function())
                 
-                self.pricing.solve(solver_function(timeLimit = new_time_limit, BestObjStop = -constant +0.0001))
+                #self.pricing.solve(solver_function(timeLimit = new_time_limit, BestObjStop = -constant +0.0001))
+                self.pricing.solve(solver_function(timeLimit = new_time_limit, MIPGap = 0.1))
                 # Will stop the solver once a matching with objective function at least zero has been found
                 #self.pricing.solve(solver_function())
 
@@ -457,7 +458,8 @@ class ModelColumnGen:
                 #self.pricing.solve(solver_function(msg=False, logPath = 'Logfile_pricing.log'))
                 with open(os.devnull, 'w') as devnull:
                     with redirect_stdout(devnull):
-                        self.pricing.solve(solver_function(msg=False, timeLimit=new_time_limit, logPath = 'Logfile_pricing.log',BestObjStop = -constant + 0.0001))
+                        #self.pricing.solve(solver_function(msg=False, timeLimit=new_time_limit, logPath = 'Logfile_pricing.log',BestObjStop = -constant + 0.0001))
+                        self.pricing.solve(solver_function(msg=False, timeLimit=new_time_limit, logPath = 'Logfile_pricing.log',MIPGap = 0.10))
                 #self.pricing.solve(solver_function(msg=False, logPath = 'Logfile_pricing.log'))
             
 

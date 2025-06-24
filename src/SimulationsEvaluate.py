@@ -23,7 +23,7 @@ def SimulationsEvaluate(S_vector: list[SolutionReport], name: str, print_out = F
     beta_in = 0.5
     # Average overall improvement in rank
     #AvgRankImpr_percent(S_vector, name, beta_in, print_out)
-    #AvgRankImpr_absolute(S_vector, name, beta_in, print_out)
+    AvgRankImpr_absolute(S_vector, name, beta_in, print_out)
 
     # Average individual improvement in rank (among improving agents)
     AvgIndRankImpr(S_vector, name, beta_in, print_out)
@@ -57,9 +57,9 @@ def AvgRankImpr_percent(S_vector: list[SolutionReport], name: str, beta_in:float
 
     df_avg = df_avg[df_avg['beta'] == beta_in]
     plt.figure(figsize=(5,4))
-    plt.scatter(df_avg['alpha'], df_avg['DiffEE'], label = "Erdil & Ergin vs DA")
-    plt.scatter(df_avg['alpha'], df_avg['DiffCG'], label = "Column Generation vs DA")
-    plt.scatter(df_avg['alpha'], df_avg['DiffHeur'], label = "Heuristic vs DA")
+    plt.scatter(df_avg['alpha'], df_avg['DiffEE'], label = "Erdil & Ergin")
+    plt.scatter(df_avg['alpha'], df_avg['DiffCG'], label = "Column generation")
+    plt.scatter(df_avg['alpha'], df_avg['DiffHeur'], label = "Heuristic")
 
     plt.xlabel("alpha")
     plt.legend()
@@ -96,13 +96,13 @@ def AvgRankImpr_absolute(S_vector: list[SolutionReport], name: str, beta_in:floa
     df_avg['DiffHeur'] = (df_avg['DA'] - df_avg['first_iter']) # Difference in average rank heuristic (first step column gen) vs DA
     df_avg['DiffCG'] = (df_avg['DA'] - df_avg['result']) # Difference in average rank column generation vs DA
 
-    #print(df_avg)
+    print(df_avg)
 
     df_avg = df_avg[df_avg['beta'] == beta_in]
     plt.figure(figsize=(5,4))
-    plt.scatter(df_avg['alpha'], df_avg['DiffEE'], label = "Erdil & Ergin vs DA")
-    plt.scatter(df_avg['alpha'], df_avg['DiffCG'], label = "Column Generation vs DA")
-    plt.scatter(df_avg['alpha'], df_avg['DiffHeur'], label = "Heuristic vs DA")
+    plt.scatter(df_avg['alpha'], df_avg['DiffEE'], label = "Erdil & Ergin")
+    plt.scatter(df_avg['alpha'], df_avg['DiffCG'], label = "Column generation")
+    plt.scatter(df_avg['alpha'], df_avg['DiffHeur'], label = "Heuristic")
 
     plt.xlabel("alpha")
     plt.legend()
@@ -142,17 +142,19 @@ def AvgIndRankImpr(S_vector: list[SolutionReport], name: str, beta_in:float, pri
     # Average out
     df_avg = df.groupby(['n_stud', 'n_schools', 'alpha', 'beta']).mean().reset_index()
 
-    #print(df_avg)
+    print(df_avg)
 
     df_avg = df_avg[df_avg['beta'] == beta_in]
     plt.figure(figsize=(5,4))
-    plt.scatter(df_avg['alpha'], df_avg['average_rank_increase_US'], label = "Column generation")
+
     plt.scatter(df_avg['alpha'], df_avg['average_rank_increase_EE'], label = "Erdil & Ergin")
+    plt.scatter(df_avg['alpha'], df_avg['average_rank_increase_US'], label = "Column generation")
+    
 
     plt.xlabel("alpha")
     plt.legend()
     plt.ylabel('Average individual increase in expected rank')
-    name_title = 'Average individual increase in expected rank vs DA (beta = ' + str(beta_in) + ')'
+    name_title = 'Individual increase in expected rank vs DA (beta = ' + str(beta_in) + ')'
     plt.title(name_title)
 
     name_plot = "Simulation Results/Plots/" + name + "/AvgIndRankImpr_abs_beta_" + str(beta_in) + '.pdf'

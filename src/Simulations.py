@@ -24,37 +24,44 @@ def SimulationCG(n_students: list, n_schools: list, alpha: list, beta: list, n_i
     For each combination of parameter values (n_stud, n_school, alpha, beta), we start seed from same value
     This makes it easier to reproduce the results later on
     """
+    print_intermediate = True
+
     # Create directory if it doesn't exist
     os.makedirs('Simulation Results', exist_ok=True)
 
     S_vector = []
 
+    now = time.strftime('%Y-%m-%d_%H%M%S')
+
+
     total_combinations = len(n_students) * len(n_schools) * len(alpha) * len(beta)
 
-    for n, m, a, b in tqdm(itertools.product(n_students, n_schools, alpha, beta), total = total_combinations, desc='Data instances', unit = 'inst', disable= not print_out):
+    for n, m, b, a in tqdm(itertools.product(n_students, n_schools, beta, alpha), total = total_combinations, desc='Data instances', unit = 'inst', disable= not print_out):
         # Generate data using data generation by Erdil & Ergin (2008)
         random.seed(seed)
-        print('alpha, beta', a, b)
 
         seed_vector = []
         for i in range(n_iterations_simul):
             seed_vector.append(random.randint(0,1000000000))
 
-        for i in range(n_iterations_simul):
+        for i in tqdm(range(n_iterations_simul), desc = 'iterations', total = n_iterations_simul, unit = 'iter', disable = not print_out):
+            if print_out:
+                print('n,m,alpha, beta, seed', n, m, a, b, seed_vector[i])
+            
             pref_list_length = m # Assume pref_list_length = number of schools (as they do)
             MyData = DataGenEE(n, m, a, b, pref_list_length, False, seed_vector[i])
 
             # Generate the assignment from DA with Single Tie-Breaking with n_match samples
-            A = DA_STB(MyData, n_match, 'GS', False, 0, False)
+            A = DA_STB(MyData, n_match, 'GS', False, 0, print_intermediate)
 
             # Find Stable improvement cycles à la Erdil and Ergin (2008)
             A_SIC = SIC_all_matchings(MyData, A, False)
 
             # Solve the formulations
-            MyModel = ModelColumnGen(MyData, A_SIC, A.assignment, False)
+            MyModel = ModelColumnGen(MyData, A_SIC, A.assignment, print_intermediate)
                 # Will use matchings in A_SIC to sd_dominate the assignment 'A.assignment' (found by DA)
             
-            S = MyModel.Solve("TRAD", "GUROBI", print_log=False, time_limit= time_lim, print_out=False)
+            S = MyModel.Solve("TRAD", "GUROBI", print_log=False, time_limit= time_lim, print_out=print_intermediate)
 
             S.Data = copy.deepcopy(MyData)
             S.n_stud = n
@@ -65,12 +72,11 @@ def SimulationCG(n_students: list, n_schools: list, alpha: list, beta: list, n_i
 
             S_vector.append(S)
 
-    # Save results of simulations using pickle
-    now = time.strftime('%Y-%m-%d_%H%M%S')
-    name = 'Simulation Results/SIM_' + now + '.plk'
-    
-    # Save to file
-    with open(name, 'wb') as f:
-        pickle.dump(S_vector, f)
+            # Save results of simulations using pickle
+            name = 'Simulation Results/SIM_' + now + '.plk'
+            
+            # Save to file
+            with open(name, 'wb') as f:
+                pickle.dump(S_vector, f)
 
     return S_vector

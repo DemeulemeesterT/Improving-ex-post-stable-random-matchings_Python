@@ -59,7 +59,8 @@ class Assignment:
 
     
         # Export assignment
-        self.export_assignment()
+        if False:
+            self.export_assignment()
     
     # Visualize the assignment in different ways
     def visualize(self):
