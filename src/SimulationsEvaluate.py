@@ -28,6 +28,9 @@ def SimulationsEvaluate(S_vector: list[SolutionReport], name: str, print_out = F
     # Average individual improvement in rank (among improving agents)
     AvgIndRankImpr(S_vector, name, beta_in, print_out)
 
+    # Display how the improvement differs with respect to n_stud
+    AvgImprovByNStud(S_vector, name, beta_in, print_out)
+
 def AvgRankImpr_percent(S_vector: list[SolutionReport], name: str, beta_in:float, print_out = False):
     # Transform ranks into pandas dataframe
     data = []
@@ -56,20 +59,28 @@ def AvgRankImpr_percent(S_vector: list[SolutionReport], name: str, beta_in:float
     #print(df_avg)
 
     df_avg = df_avg[df_avg['beta'] == beta_in]
-    plt.figure(figsize=(5,4))
-    plt.scatter(df_avg['alpha'], df_avg['DiffEE'], label = "Erdil & Ergin")
-    plt.scatter(df_avg['alpha'], df_avg['DiffCG'], label = "Column generation")
-    plt.scatter(df_avg['alpha'], df_avg['DiffHeur'], label = "Heuristic")
 
-    plt.xlabel("alpha")
-    plt.legend()
-    plt.ylabel('Improvement in expected rank')
-    plt.gca().yaxis.set_major_formatter(PercentFormatter(1)) # Express y-axis in percentages
-    name_title = 'Improvement in expected rank vs DA (beta = ' + str(beta_in) + ')'
-    plt.title(name_title)
+    max_diff = df_avg['DiffCG'].max()
 
-    name_plot = "Simulation Results/Plots/" + name + "/AvgRankImpr_percent_beta_" + str(beta_in) + '.pdf'
-    plt.savefig(name_plot, format="pdf", bbox_inches="tight")
+    for n_stud in df_avg['n_stud'].unique():
+        df_n = df_avg[df_avg['n_stud'] == n_stud]
+        plt.figure(figsize=(5,4))
+        plt.scatter(df_n['alpha'], df_n['DiffEE'], label = "Erdil & Ergin")
+        if S_vector[0].bool_ColumnGen == True:
+            plt.scatter(df_n['alpha'], df_n['DiffCG'], label = "Column generation")
+        plt.scatter(df_n['alpha'], df_n['DiffHeur'], label = "Heuristic")
+
+        plt.xlabel("alpha")
+        plt.legend()
+        plt.ylabel('Improvement in expected rank')
+
+        plt.ylim(-0.005, max_diff + 0.005)
+        plt.gca().yaxis.set_major_formatter(PercentFormatter(1)) # Express y-axis in percentages
+        name_title = 'Improvement in expected rank vs DA\n (n = ' + str(n_stud) + ', beta = ' + str(beta_in) + ')'
+        plt.title(name_title)
+
+        name_plot = "Simulation Results/Plots/" + name + "/AvgRankImpr_percent_beta_" + str(n_stud) + '_' + str(beta_in) + '.pdf'
+        plt.savefig(name_plot, format="pdf", bbox_inches="tight")
 
 def AvgRankImpr_absolute(S_vector: list[SolutionReport], name: str, beta_in:float, print_out = False):
     # Transform ranks into pandas dataframe
@@ -99,19 +110,27 @@ def AvgRankImpr_absolute(S_vector: list[SolutionReport], name: str, beta_in:floa
     print(df_avg)
 
     df_avg = df_avg[df_avg['beta'] == beta_in]
-    plt.figure(figsize=(5,4))
-    plt.scatter(df_avg['alpha'], df_avg['DiffEE'], label = "Erdil & Ergin")
-    plt.scatter(df_avg['alpha'], df_avg['DiffCG'], label = "Column generation")
-    plt.scatter(df_avg['alpha'], df_avg['DiffHeur'], label = "Heuristic")
 
-    plt.xlabel("alpha")
-    plt.legend()
-    plt.ylabel('Improvement in expected rank')
-    name_title = 'Improvement in expected rank vs DA (beta = ' + str(beta_in) + ')'
-    plt.title(name_title)
+    max_diff = df_avg['DiffCG'].max()
 
-    name_plot = "Simulation Results/Plots/" + name + "/AvgRankImpr_abs_beta_" + str(beta_in) + '.pdf'
-    plt.savefig(name_plot, format="pdf", bbox_inches="tight")
+
+    for n_stud in df_avg['n_stud'].unique():
+        df_n = df_avg[df_avg['n_stud'] == n_stud]
+        plt.figure(figsize=(5,4))
+        plt.scatter(df_n['alpha'], df_n['DiffEE'], label = "Erdil & Ergin")
+        if S_vector[0].bool_ColumnGen == True:
+            plt.scatter(df_n['alpha'], df_n['DiffCG'], label = "Column generation")
+        plt.scatter(df_n['alpha'], df_n['DiffHeur'], label = "Heuristic")
+
+        plt.xlabel("alpha")
+        plt.legend()
+        plt.ylabel('Improvement in expected rank')
+        plt.ylim(-0.005, max_diff + 0.005)
+        name_title = 'Improvement in expected rank vs DA\n (n = ' + str(n_stud) + ', beta = ' + str(beta_in) + ')'
+        plt.title(name_title)
+
+        name_plot = "Simulation Results/Plots/" + name + "/AvgRankImpr_abs_beta_" + str(n_stud) + '_' + str(beta_in) + '.pdf'
+        plt.savefig(name_plot, format="pdf", bbox_inches="tight")
 
 
 def AvgIndRankImpr(S_vector: list[SolutionReport], name: str, beta_in:float, print_out = False):
@@ -145,17 +164,80 @@ def AvgIndRankImpr(S_vector: list[SolutionReport], name: str, beta_in:float, pri
     print(df_avg)
 
     df_avg = df_avg[df_avg['beta'] == beta_in]
-    plt.figure(figsize=(5,4))
 
-    plt.scatter(df_avg['alpha'], df_avg['average_rank_increase_EE'], label = "Erdil & Ergin")
-    plt.scatter(df_avg['alpha'], df_avg['average_rank_increase_US'], label = "Column generation")
+    max_diff = df_avg['average_rank_increase_US'].max() # Find max improvement
+
+
+    for n_stud in df_avg['n_stud'].unique():
+        df_n = df_avg[df_avg['n_stud'] == n_stud]
+
+        plt.figure(figsize=(5,4))
+
+        plt.scatter(df_n['alpha'], df_n['average_rank_increase_EE'], label = "Erdil & Ergin")
+        if S_vector[0].bool_ColumnGen == True:
+            plt.scatter(df_n['alpha'], df_n['average_rank_increase_US'], label = "Column generation")
+        else: 
+            plt.scatter(df_n['alpha'], df_n['average_rank_increase_US'], label = "Heuristic")
     
 
-    plt.xlabel("alpha")
-    plt.legend()
-    plt.ylabel('Average individual increase in expected rank')
-    name_title = 'Individual increase in expected rank vs DA (beta = ' + str(beta_in) + ')'
-    plt.title(name_title)
+        plt.xlabel("alpha")
+        plt.legend()
+        plt.ylabel('Average individual increase in expected rank')
+        plt.ylim(-0.005, max_diff + 0.005)
+        name_title = 'Individual increase in expected rank vs DA\n (n = ' + str(n_stud) + ', beta = ' + str(beta_in) + ')'
+        plt.title(name_title)
 
-    name_plot = "Simulation Results/Plots/" + name + "/AvgIndRankImpr_abs_beta_" + str(beta_in) + '.pdf'
-    plt.savefig(name_plot, format="pdf", bbox_inches="tight")
+        name_plot = "Simulation Results/Plots/" + name + "/AvgIndRankImpr_abs_beta_" + str(n_stud) + '_' + str(beta_in) + '.pdf'
+        plt.savefig(name_plot, format="pdf", bbox_inches="tight")
+
+
+def AvgImprovByNStud(S_vector: list[SolutionReport], name: str, beta_in:float, print_out = False):
+    # Transform ranks into pandas dataframe
+    data = []
+    for i in range(len(S_vector)):
+        df2 = S_vector[i].avg_ranks.copy()
+        df2['n_stud'] = S_vector[i].n_stud
+        df2['n_schools'] = S_vector[i].n_schools
+        df2['alpha'] = S_vector[i].alpha
+        df2['beta'] = S_vector[i].beta
+
+        data.append(df2)
+
+    df = pd.DataFrame(data)
+
+    #print(df[df['beta']==1])
+
+    if len(df['n_stud'].unique()) > 1: # If you evaluated for more than a single number of students
+
+        # Average out
+        df_avg = df.groupby(['n_stud', 'n_schools', 'alpha', 'beta']).mean().reset_index()
+            # Last command resets indices to keep using them as colummns
+
+        
+        # ABSOLUTE
+        df_avg['DiffEE'] = (df_avg['DA'] - df_avg['warm_start']) # Difference in average rank Erdil & Ergin vs DA
+        df_avg['DiffHeur'] = (df_avg['DA'] - df_avg['first_iter']) # Difference in average rank heuristic (first step column gen) vs DA
+        df_avg['DiffCG'] = (df_avg['DA'] - df_avg['result']) # Difference in average rank column generation vs DA
+
+        df_avg = df_avg[df_avg['beta'] == beta_in]
+
+        # Average over alpha and n_schools
+        df_avg = df_avg.groupby(['n_stud']).mean().reset_index()
+        print(df_avg)
+
+        plt.figure(figsize=(5,4))
+
+        plt.scatter(df_avg['n_stud'], df_avg['DiffEE'], label = "Erdil & Ergin")
+        if S_vector[0].bool_ColumnGen == True:
+            plt.scatter(df_avg['n_stud'], df_avg['DiffCG'], label = "Column generation")
+        plt.scatter(df_avg['n_stud'], df_avg['DiffHeur'], label = "Heuristic")
+
+
+        plt.xlabel("n")
+        plt.legend()
+        plt.ylabel('Improvement in expected rank')
+        name_title = 'Increase in expected rank by n vs DA\n (beta = ' + str(beta_in) + ')'
+        plt.title(name_title)
+
+        name_plot = "Simulation Results/Plots/" + name + "/RankImprByN_abs_beta_" + str(beta_in) + '.pdf'
+        plt.savefig(name_plot, format="pdf", bbox_inches="tight")
