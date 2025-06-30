@@ -63,7 +63,7 @@ def SimulationCG(n_students_schools: list, alpha: list, beta: list, n_iterations
             A = DA_STB(MyData, n_match, 'GS', False, 0, print_intermediate)
 
             # Find Stable improvement cycles à la Erdil and Ergin (2008)
-            A_SIC = SIC_all_matchings(MyData, A, False)
+            A_SIC = SIC_all_matchings(MyData, A, print_intermediate)
 
             # Solve the formulations
             MyModel = ModelColumnGen(MyData, A_SIC, A.assignment, print_intermediate)

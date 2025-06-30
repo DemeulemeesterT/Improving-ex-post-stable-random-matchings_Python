@@ -369,10 +369,6 @@ class ModelColumnGen:
 
             # Check if the time limit is exceeded
             current_time = time.monotonic()
-            if current_time - starting_time > time_limit:
-                optimal = True
-                self.time_limit_exceeded = True
-                return self.generate_solution_report(print_out)
 
             #if print_out:
             #    for m in self.N_MATCH:
@@ -387,7 +383,13 @@ class ModelColumnGen:
                 return self.generate_solution_report(print_out) 
 
             elif bool_ColumnGen == True: # Only if you want to continue with the column generation procedure.
-                #### SOLVE PRICING ####
+                if current_time - starting_time > time_limit:
+                    optimal = True
+                    self.time_limit_exceeded = True
+                    self.time_columnGen = current_time - starting_time
+                    return self.generate_solution_report(print_out)
+                
+                ## SOLVE PRICING ####
                 # Get dual variables
                 duals = {}
                 
