@@ -469,7 +469,7 @@ class ModelColumnGen:
                     PoolGap = gap_pricing,
                     PoolSolutions = n_sol_pricing,
                     PoolSearchMode = 2)) #Find diverse solutions
-                    #MIPGap = 0.05)) 
+                    #MIPGap = 0.1)) 
 
                     # Will stop the solver once a matching with objective function at least zero has been found
                     #self.pricing.solve(solver_function())
@@ -483,7 +483,7 @@ class ModelColumnGen:
                     PoolGap = gap_pricing,
                     PoolSolutions = n_sol_pricing,
                     PoolSearchMode = 2))
-                    #MIPGap = 0.05))
+                    #MIPGap = 0.1))
                     #self.pricing.solve(solver_function(msg=False, logPath = 'Logfile_pricing.log'))
                 
 
@@ -531,14 +531,23 @@ class ModelColumnGen:
 
                         # Go through all matchings
                         for t in range(n_sol_found):
+
                             pricing_gurobi.setParam('SolutionNumber', t)
 
                             # Add the matching found by the pricing problem to the master problem       
                             found_M = np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools))
 
+                            all_vars_in_model = pricing_gurobi.getVars()
+                            all_var_names = [v.VarName for v in all_vars_in_model]
+                            print("All variable names in the model:", all_var_names)
+
                             # Find all variables by name
                             for (i,j) in self.PAIRS:
-                                name_var = f"M_{i}_{j}"
+                                student_name = self.MyData.ID_stud[i]
+                                school_name = self.MyData.ID_school[j]
+                                name_var = f"M_{student_name}_{school_name}"
+                                if print_out:
+                                    print(t, ', Name var: ', name_var)
                                 gurobi_var = pricing_gurobi.getVarByName(name_var)
                                 found_M[i][j] = gurobi_var.Xn
                                 
@@ -593,10 +602,12 @@ class ModelColumnGen:
 
         # Decision variables
         self.M_pricing = LpVariable.dicts("M", [(i, j) for i, j in self.PAIRS], cat="Binary")
+
         # Rename M
         for i, j in self.M_pricing:
             student_name = self.MyData.ID_stud[i]
             school_name = self.MyData.ID_school[j]
+
             self.M_pricing[i, j].name = f"M_{student_name}_{school_name}"
 
         ### CONSTRAINTS ###
