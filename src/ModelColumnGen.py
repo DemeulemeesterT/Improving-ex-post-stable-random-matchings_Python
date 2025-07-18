@@ -42,8 +42,8 @@ class SolutionReport:
     time_limit: int     # Time limit
     optimal: bool       # Optimality guaranteed?
     time: float         # Time used
-    Xdecomp: list       # Matchings in the found decomposition
-    Xdecomp_coeff: list # Weights of these matchings
+    #Xdecomp: list       # Matchings in the found decomposition
+    #Xdecomp_coeff: list # Weights of these matchings
     bool_ColumnGen: bool # True if column generation if performed, False if only first step is performed
     #... 
 
@@ -738,8 +738,7 @@ class ModelColumnGen:
 
         # Save the final solution
         # Create variables to store the solution in
-        self.Xdecomp = [] # Matchings in the found decomposition
-        self.Xdecomp_coeff = [] # Weights of these matchings
+        
         zero = np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools))
         self.Xassignment = Assignment(self.MyData, zero) # Contains the final assignment found by the model
         
@@ -747,18 +746,18 @@ class ModelColumnGen:
         self.Xassignment.assignment = np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools))
 
         # Store decomposition
-        self.Xdecomp = [] # Matchings in the found decomposition
-        self.Xdecomp_coeff = [] # Weights of these matchings
+        #self.Xdecomp = [] # Matchings in the found decomposition
+        #self.Xdecomp_coeff = [] # Weights of these matchings
 
         for l in self.N_MATCH:
-            self.Xdecomp.append(np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools)))
-            self.Xdecomp_coeff.append(self.w[l].varValue)
+            #self.Xdecomp.append(np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools)))
+            #self.Xdecomp_coeff.append(self.w[l].varValue)
             for (i,j) in self.PAIRS:
-                self.Xdecomp[-1][i,j] = self.M_list[l][i][j]
+            #    self.Xdecomp[-1][i,j] = self.M_list[l][i][j]
                 self.Xassignment.assignment[i,j] += self.w[l].varValue * self.M_list[l][i][j]
         
-        S.Xdecomp = self.Xdecomp
-        S.Xdecomp_coeff = self.Xdecomp_coeff
+        #S.Xdecomp = self.Xdecomp
+        #S.Xdecomp_coeff = self.Xdecomp_coeff
         S.A = copy.deepcopy(self.Xassignment)
 
         S.A_SIC = copy.deepcopy(self.p)

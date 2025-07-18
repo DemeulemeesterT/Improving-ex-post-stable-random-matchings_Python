@@ -39,6 +39,11 @@ def SimulationCG(COMPARE_SOLUTIONS: list, n_students_schools: list, alpha: list,
 
     now = time.strftime('%Y-%m-%d_%H%M%S')
 
+    # The different possible solutions
+    sol_list = ["SD_UPON_DA", "SD_UPON_EE", "EADA"]
+    for sol in COMPARE_SOLUTIONS:
+        if sol not in sol_list:
+            raise ValueError(f"Invalid value: '{sol}'. Allowed values are: {sol_list}")   
 
     total_combinations = len(n_students_schools) * len(alpha) * len(beta)
 
@@ -65,6 +70,7 @@ def SimulationCG(COMPARE_SOLUTIONS: list, n_students_schools: list, alpha: list,
 
             # Find Stable improvement cycles à la Erdil and Ergin (2008)
             A_SIC = SIC_all_matchings(MyData, A, print_intermediate)
+
 
             # Solve the formulations
             MyModel = ModelColumnGen(MyData, A_SIC, A.assignment, print_intermediate)

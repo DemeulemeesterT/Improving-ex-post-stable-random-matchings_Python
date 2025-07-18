@@ -1,6 +1,64 @@
 import numpy as np
 import copy
 from .Data import*
+from .Assignment import *
+from .DA_STB import generate_permutations_STB, generate_strict_prior_from_perturbation
+
+from numpy.random import default_rng
+
+def EADAM_STB(MyData: Data, n_iter: int, seed = 123456789, print_out = False):
+    """
+        EADAM with single tie-breaking
+
+        Parameters:
+        - MyData: An instance from the Data class
+        - n_iter: number of tie-breakings sampled
+        - print_out: boolean to control output on the screen
+
+        Returns:
+        - An instance of the Assignment class
+    """
+
+    permut = generate_permutations_STB(MyData, n_iter, seed, print_out)
+
+    # For each of the permutations, break ties in the preferences and run Gale-Shapley algorithm on them
+    M_sum = np.zeros(shape=(MyData.n_stud, MyData.n_schools)) # Will contain the final random_assignment
+
+    # Keep track of the generated matchings in a set. 
+    # Only matchings that were not in the set yet will be added.
+    M_set = set()
+    w_set = {} # Contains the weights of the matchings in M_set. Each key of this set is a matching in M_set
+
+    for p in tqdm(permut, desc='Generate EADAM_STB', unit = 'perturb', disable= not print_out):
+        prior_new = generate_strict_prior_from_perturbation(MyData, p, print_out)
+                
+        # Compute DA matching for the new priorities after tie-breaking
+        Data_new_prior = Data(MyData.n_stud, MyData.n_schools, MyData.pref, prior_new, MyData.cap, MyData.ID_stud, MyData.ID_school, MyData.file_name)
+        
+        # Compute EADAM for this tie-breaking
+        consent = [1] * MyData.n_stud
+        M_computed = EADAM(Data_new_prior, consent)
+
+        M_set.add(tuple(map(tuple, M_computed))) # Add found matching to the set of matchings
+            # You have to add it as a tuple of tuples, because otherwise Python cannot check whether it was already in the set.
+            # If later you want to use it as a numpy array again, just use np.array(tuple_of_tuples)
+       
+        # Take note of the weight of this matching (depending on whether it was found before)
+        key = tuple(map(tuple, M_computed))
+        if key in w_set:
+            w_set[key] = w_set[key] + 1/n_iter
+        else:
+            w_set[key] = 1/n_iter
+        M_sum = M_sum + M_computed            
+        
+    M_sum = M_sum / n_iter
+
+    # Create an instance of the Assignment class
+    label = MyData.file_name + "_" + "EADAM_STB" + str(n_iter)
+    A = Assignment(MyData, M_sum, M_set, w_set, label)
+
+    return A
+
 
 def EADAM(MyData: Data, consent: list, print_out = False):
     """
@@ -71,7 +129,7 @@ def EADAM(MyData: Data, consent: list, print_out = False):
             
             # The non-consenting unassigned student is removed from the market
             temp_pref_index[i] = []
-            
+
         # Handle students assigned to underdemanded schools
         for school_idx in ess_underdemand:
             for i in range(MyData.n_stud):
