@@ -209,7 +209,7 @@ class ModelColumnGen:
       
     def add_matching(self, M_in: np.ndarray, index, print_out: bool):
         """
-        Function to add a matching M as a decision variable to the master proble
+        Function to add a matching M as a decision variable to the master problem
         Index is the index of the matching in the master problem
         """  
         
@@ -262,7 +262,7 @@ class ModelColumnGen:
 
 
         
-    def Solve(self, stab_constr: str, solver: str, print_log: str, time_limit: int, n_sol_pricing: int, gap_pricing: float, bool_ColumnGen: bool, print_out: bool):
+    def Solve(self, stab_constr: str, solver: str, print_log: str, time_limit: int, n_sol_pricing: int, gap_solutionpool_pricing: float, MIPGap: float, bool_ColumnGen: bool, print_out: bool):
         """
         Solves the formulation using column generation.
         Returns an instance from the Assignment class.
@@ -278,7 +278,8 @@ class ModelColumnGen:
             print_log: print output of solver on screen?
             time_limit: in s
             n_sol_pricing: number of solutions returned by pricing problem
-            gap_pricing: optimality gap used for the solutions included in the solution pool in the pricing problem
+            gap_solutionpool_pricing: optimality gap used for the solutions included in the solution pool in the pricing problem
+            MIPGap: gap for pricing problem
             print_out (bool): boolean that controls which output is printed.
             bool_ColumnGen (bool): if True: perform entire column generation for time_limit period
                             if False: only perform first iteration, and don't build pricing problem
@@ -351,6 +352,8 @@ class ModelColumnGen:
             # String can't be used as the argument in solve method, so convert it like this:
             solver_function = globals()[solver]  # Retrieves the GUROBI function or class
         
+            #self.master.writeLP("TestColumnFormulation.lp")
+
             # Solve the formulation
             if print_log == False:
                 self.master.solve(solver_function(msg = False, logPath = "Logfile_master.log", warmStart = True))
@@ -436,7 +439,7 @@ class ModelColumnGen:
 
                 self.pricing.setObjective(pricing_obj)
                 
-                self.pricing.writeLP("PricingProblem.lp")
+                #self.pricing.writeLP("PricingProblem.lp")
 
                 # Add the constant terms!
                 constant = 0
@@ -466,10 +469,10 @@ class ModelColumnGen:
                     
                     #self.pricing.solve(solver_function(timeLimit = new_time_limit, BestObjStop = -constant +0.0001))
                     self.pricing.solve(solver_function(timeLimit = new_time_limit,
-                    PoolGap = gap_pricing,
+                    PoolGap = gap_solutionpool_pricing,
                     PoolSolutions = n_sol_pricing,
-                    PoolSearchMode = 2)) #Find diverse solutions
-                    #MIPGap = 0.1)) 
+                    PoolSearchMode = 2, #Find diverse solutions
+                    MIPGap = MIPGap)) 
 
                     # Will stop the solver once a matching with objective function at least zero has been found
                     #self.pricing.solve(solver_function())
@@ -480,10 +483,10 @@ class ModelColumnGen:
                         with redirect_stdout(devnull):
                             #self.pricing.solve(solver_function(msg=False, timeLimit=new_time_limit, logPath = 'Logfile_pricing.log',BestObjStop = -constant + 0.0001))
                             self.pricing.solve(solver_function(msg=False, logPath = 'Logfile_pricing.log',timeLimit = new_time_limit,
-                    PoolGap = gap_pricing,
+                    PoolGap = gap_solutionpool_pricing,
                     PoolSolutions = n_sol_pricing,
-                    PoolSearchMode = 2))
-                    #MIPGap = 0.1))
+                    PoolSearchMode = 2,
+                    MIPGap = MIPGap))
                     #self.pricing.solve(solver_function(msg=False, logPath = 'Logfile_pricing.log'))
                 
 
@@ -537,21 +540,16 @@ class ModelColumnGen:
                             # Add the matching found by the pricing problem to the master problem       
                             found_M = np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools))
 
-                            all_vars_in_model = pricing_gurobi.getVars()
-                            all_var_names = [v.VarName for v in all_vars_in_model]
-                            print("All variable names in the model:", all_var_names)
-
                             # Find all variables by name
                             for (i,j) in self.PAIRS:
                                 student_name = self.MyData.ID_stud[i]
                                 school_name = self.MyData.ID_school[j]
                                 name_var = f"M_{student_name}_{school_name}"
-                                if print_out:
-                                    print(t, ', Name var: ', name_var)
                                 gurobi_var = pricing_gurobi.getVarByName(name_var)
                                 found_M[i][j] = gurobi_var.Xn
                                 
                             self.add_matching(found_M, len(self.w), print_out)
+                            #self.master.writeLP("TestColumnFormulation.lp")
                         
                             self.M_list.append(found_M)
                             self.nr_matchings += 1

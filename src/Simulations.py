@@ -14,7 +14,7 @@ import random
 import pickle # to export data
 
 
-def SimulationCG(n_students_schools: list, alpha: list, beta: list, n_iterations_simul: int, n_match: int, time_lim: int, seed: int, n_sol_pricing: int, gap_pricing: float, bool_ColumnGen: bool, print_out = False):
+def SimulationCG(n_students_schools: list, alpha: list, beta: list, n_iterations_simul: int, n_match: int, time_lim: int, seed: int, n_sol_pricing: int, gap_pricing: float, MIPGap: float, bool_ColumnGen: bool, print_out = False):
     """
     Will run column generation framework 'n_iterations' times, for the specified parameter values
     Output: an array containing SolutionReport objects
@@ -69,7 +69,7 @@ def SimulationCG(n_students_schools: list, alpha: list, beta: list, n_iterations
             MyModel = ModelColumnGen(MyData, A_SIC, A.assignment, print_intermediate)
                 # Will use matchings in A_SIC to sd_dominate the assignment 'A.assignment' (found by DA)
             
-            S = MyModel.Solve("TRAD", "GUROBI", print_log=False, time_limit= time_lim, n_sol_pricing= n_sol_pricing, gap_pricing=gap_pricing, bool_ColumnGen=bool_ColumnGen, print_out=print_intermediate)
+            S = MyModel.Solve("TRAD", "GUROBI", print_log=False, time_limit= time_lim, n_sol_pricing= n_sol_pricing, gap_solutionpool_pricing=gap_pricing, MIPGap=MIPGap, bool_ColumnGen=bool_ColumnGen, print_out=print_intermediate)
 
             S.Data = copy.deepcopy(MyData)
             S.n_stud = n
