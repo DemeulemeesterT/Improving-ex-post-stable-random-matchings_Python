@@ -14,11 +14,12 @@ import random
 import pickle # to export data
 
 
-def SimulationCG(n_students_schools: list, alpha: list, beta: list, n_iterations_simul: int, n_match: int, time_lim: int, seed: int, n_sol_pricing: int, gap_pricing: float, MIPGap: float, bool_ColumnGen: bool, print_out = False):
+def SimulationCG(COMPARE_SOLUTIONS: list, n_students_schools: list, alpha: list, beta: list, n_iterations_simul: int, n_match: int, time_lim: int, seed: int, n_sol_pricing: int, gap_pricing: float, MIPGap: float, bool_ColumnGen: bool, print_out = False):
     """
     Will run column generation framework 'n_iterations' times, for the specified parameter values
     Output: an array containing SolutionReport objects
 
+    - COMPARE_SOLUTIONS: a list of strings that contains the solutions we want to compare
     - n_students_schools, alpha, beta: lists containing the corresponding parameter values
     - n_students_schools is a list of pairs of values to evaluate: e,g,. [[100, 2], [200, 4], [400, 8]]
     - n_sol_pricing: number of solutions returned by pricing problem

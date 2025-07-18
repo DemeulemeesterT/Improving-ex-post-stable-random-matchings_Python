@@ -21,9 +21,23 @@ def EADAM(MyData: Data, consent: list, print_out = False):
     temp_pref_index = copy.deepcopy(MyData.pref_index)
     temp_rank_prior = copy.deepcopy(MyData.rank_prior)
 
+    iter = 0
+
+    # Matching that will store final assignments
+    M_final = np.zeros(shape=(MyData.n_stud, MyData.n_schools))
+
     while True:
+        MyData
+
+        iter = iter + 1
+
         # Step 1: Iteratively re-run Gale-Shapley
-        M, ess_underdemand = EADAM_GS(MyData, print_out)
+        M, ess_underdemand = EADAM_GS(temp_pref_index, temp_rank_prior, MyData.cap, print_out)
+
+        if print_out:
+            print("ITERATION ", iter)
+            print(len(ess_underdemand), ' underdemanded schools:', ess_underdemand)
+            print(M, "\n")
 
         # Step 2: If all schools are underdemanded, the algorithm terminates
         if len(ess_underdemand) == MyData.n_schools:
@@ -35,7 +49,7 @@ def EADAM(MyData: Data, consent: list, print_out = False):
         # Identify unassigned agents
         unassigned_students = []
         for i in range(MyData.n_stud):
-            if sum(M[i] == 0):
+            if sum(M[i]) == 0:
                 unassigned_students.append(i)
             
         for i in unassigned_students:
@@ -57,7 +71,7 @@ def EADAM(MyData: Data, consent: list, print_out = False):
             
             # The non-consenting unassigned student is removed from the market
             temp_pref_index[i] = []
-
+            
         # Handle students assigned to underdemanded schools
         for school_idx in ess_underdemand:
             for i in range(MyData.n_stud):
@@ -88,29 +102,22 @@ def EADAM(MyData: Data, consent: list, print_out = False):
 
 
 
-
-
-
-
-        
-
-
-def EADAM_GS(MyData: Data, print_out = False):
+def EADAM_GS(pref_index, rank_prior, cap, print_out = False):
     """
    This function is inspired by code to run gale-shapley algorithm, but keeps track of underdemanded schools
     Returns:
-    - assignment (np.array): A list where assignment[i] is the school assigned to student i.
+    - M (np.array): A numpy array where M[i][j] = 1 if student i is assigned to school j
     - ess_underdemand (list): A list of indices of essentially underdemanded schools.
     """
     
-    n_stud = len(MyData.pref)
-    n_schools = len(MyData.prior)
-    pref = copy.deepcopy(MyData.pref) # We will gradually delete preferences from this 
+    n_stud = len(pref_index)
+    n_schools = len(rank_prior)
+    pref = copy.deepcopy(pref_index) # We will gradually delete preferences from this 
 
     # Initialize data structures
     free_stud = list(range(n_stud))  # List of free students by index
     # Initialize temp_assigned with empty lists for each school
-    temp_assigned = {school_index: [] for school_index in range(len(MyData.cap))} 
+    temp_assigned = {school_index: [] for school_index in range(len(cap))} 
 
     # Track all proposals made by students
     school_proposals = {s: set() for s in range(n_schools)}
@@ -124,7 +131,7 @@ def EADAM_GS(MyData: Data, print_out = False):
             # ... if preference list not empty yet
             if len(pref[i])>0:
                 # Find index of that school
-                index = MyData.ID_school.index(pref[i][0])
+                index = pref[i][0]
                 temp_assigned[index].append(i) 
     
                 # Remove that school from student i's preferences
@@ -136,26 +143,26 @@ def EADAM_GS(MyData: Data, print_out = False):
         
         # Now each school j only keeps cap[j] most preferred students, and the others will be added to free_stud again
         for j in range(n_schools):
-            if len(temp_assigned[j]) > MyData.cap[j]:
+            if len(temp_assigned[j]) > cap[j]:
                 # Dictionary containing priorities of the students who are temporarily assigned to school j
                 prior_values = {stud_index: [] for stud_index in temp_assigned[j]}  
                 for i in range(len(temp_assigned[j])):
                     # Find the position of student temp_assigned[j][i] in the priority list of school j
-                    prior_values[temp_assigned[j][i]] = MyData.prior[j].index(MyData.ID_stud[temp_assigned[j][i]])
+                    prior_values[temp_assigned[j][i]] = rank_prior[j][temp_assigned[j][i]]
 
                 # Sort the dictionary prior_values items by value
                 sorted_prior_values = sorted(prior_values.items(), key=lambda item: item[1])
 
                 # Remove the least preferred students who exceed capacity, and add them to free_students
-                while len(temp_assigned[j]) > MyData.cap[j]:
+                while len(temp_assigned[j]) > cap[j]:
                     # Add to free_stud
-                    free_stud.append(sorted_prior_values[MyData.cap[j]][0])
+                    free_stud.append(sorted_prior_values[cap[j]][0])
 
                     # Remove from temp_assigned
-                    temp_assigned[j].remove(sorted_prior_values[MyData.cap[j]][0])
+                    temp_assigned[j].remove(sorted_prior_values[cap[j]][0])
 
                     # Remove from sorted_prior_values
-                    sorted_prior_values.pop(MyData.cap[j])
+                    sorted_prior_values.pop(cap[j])
     
     # Transform the assignment in a numpy array where M[i][j] = 1 if student i is assigned to school j
     M = np.zeros(shape=(n_stud, n_schools))
@@ -182,7 +189,7 @@ def EADAM_GS(MyData: Data, print_out = False):
         for s in range(n_schools):
             # A school is underdemanded if its proposal count is not over capacity
             # and it hasn't already been identified.
-            if school_nproposals[s] <= MyData.cap[s] and s not in ess_underdemand:
+            if school_nproposals[s] <= cap[s] and s not in ess_underdemand:
                 ess_underdemand.append(s)
                 newly_found_count += 1
                 
