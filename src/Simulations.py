@@ -130,7 +130,7 @@ def SimulationCG(COMPARE_SOLUTIONS: list, n_students_schools: list, alpha: list,
                 'beta' : b,
                 'seed' : seed_vector[i],
                 'time_limit': time_lim,
-                '#_sol_methods': len(sol_list)
+                '#_sol_methods': len(COMPARE_SOLUTIONS)
             }
 
             pref_list_length = m # Assume pref_list_length = number of schools (as they do)
@@ -176,16 +176,16 @@ def SimulationCG(COMPARE_SOLUTIONS: list, n_students_schools: list, alpha: list,
                         comp_EADA = S.A.compare(A_EADAM.assignment)
 
                     row_data[f'{counter}_n_stud_impr_DA'] = comp_DA["n_students_improving"]     
-                    row_data[f'{counter}_n_avg_rank_impr_DA'] = comp_DA["average_rank_increase"]  
-                    row_data[f'{counter}_n_median_rank_impr_DA'] = comp_DA["median_rank_improvement"]   
+                    row_data[f'{counter}_avg_rank_impr_DA'] = comp_DA["average_rank_increase"]  
+                    row_data[f'{counter}_median_rank_impr_DA'] = comp_DA["median_rank_improvement"]   
 
                     row_data[f'{counter}_n_stud_impr_EE'] = comp_EE["n_students_improving"]     
-                    row_data[f'{counter}_n_avg_rank_impr_EE'] = comp_EE["average_rank_increase"]  
-                    row_data[f'{counter}_n_median_rank_impr_EE'] = comp_EE["median_rank_improvement"]    
+                    row_data[f'{counter}_avg_rank_impr_EE'] = comp_EE["average_rank_increase"]  
+                    row_data[f'{counter}_median_rank_impr_EE'] = comp_EE["median_rank_improvement"]    
                     if "SD_UPON_EADA" in sol_list:
                         row_data[f'{counter}_n_stud_impr_EADA'] = comp_EADA["n_students_improving"]     
-                        row_data[f'{counter}_n_avg_rank_impr_EADA'] = comp_EADA["average_rank_increase"]  
-                        row_data[f'{counter}_n_median_rank_impr_EADA'] = comp_EADA["median_rank_improvement"]   
+                        row_data[f'{counter}_avg_rank_impr_EADA'] = comp_EADA["average_rank_increase"]  
+                        row_data[f'{counter}_median_rank_impr_EADA'] = comp_EADA["median_rank_improvement"]   
 
                 elif s == "SD_UPON_EE":
                     MyModel = ModelColumnGen(MyData, A_SIC, A_SIC.assignment, print_intermediate)
@@ -208,16 +208,16 @@ def SimulationCG(COMPARE_SOLUTIONS: list, n_students_schools: list, alpha: list,
                         comp_EADA = S.A.compare(A_EADAM.assignment)
 
                     row_data[f'{counter}_n_stud_impr_DA'] = comp_DA["n_students_improving"]     
-                    row_data[f'{counter}_n_avg_rank_impr_DA'] = comp_DA["average_rank_increase"]  
-                    row_data[f'{counter}_n_median_rank_impr_DA'] = comp_DA["median_rank_improvement"]   
+                    row_data[f'{counter}_avg_rank_impr_DA'] = comp_DA["average_rank_increase"]  
+                    row_data[f'{counter}_median_rank_impr_DA'] = comp_DA["median_rank_improvement"]   
 
                     row_data[f'{counter}_n_stud_impr_EE'] = comp_EE["n_students_improving"]     
-                    row_data[f'{counter}_n_avg_rank_impr_EE'] = comp_EE["average_rank_increase"]  
-                    row_data[f'{counter}_n_median_rank_impr_EE'] = comp_EE["median_rank_improvement"]    
+                    row_data[f'{counter}_avg_rank_impr_EE'] = comp_EE["average_rank_increase"]  
+                    row_data[f'{counter}_median_rank_impr_EE'] = comp_EE["median_rank_improvement"]    
                     if "SD_UPON_EADA" in sol_list:
                         row_data[f'{counter}_n_stud_impr_EADA'] = comp_EADA["n_students_improving"]     
-                        row_data[f'{counter}_n_avg_rank_impr_EADA'] = comp_EADA["average_rank_increase"]  
-                        row_data[f'{counter}_n_median_rank_impr_EADA'] = comp_EADA["median_rank_improvement"]  
+                        row_data[f'{counter}_avg_rank_impr_EADA'] = comp_EADA["average_rank_increase"]  
+                        row_data[f'{counter}_median_rank_impr_EADA'] = comp_EADA["median_rank_improvement"]  
 
                 elif s == "SD_UPON_EADA":
                     MyModel = ModelColumnGen(MyData, A_SIC, A_EADAM.assignment, print_intermediate)
@@ -240,16 +240,16 @@ def SimulationCG(COMPARE_SOLUTIONS: list, n_students_schools: list, alpha: list,
                         comp_EADA = S.A.compare(A_EADAM.assignment)
 
                     row_data[f'{counter}_n_stud_impr_DA'] = comp_DA["n_students_improving"]     
-                    row_data[f'{counter}_n_avg_rank_impr_DA'] = comp_DA["average_rank_increase"]  
-                    row_data[f'{counter}_n_median_rank_impr_DA'] = comp_DA["median_rank_improvement"]   
+                    row_data[f'{counter}_avg_rank_impr_DA'] = comp_DA["average_rank_increase"]  
+                    row_data[f'{counter}_median_rank_impr_DA'] = comp_DA["median_rank_improvement"]   
 
                     row_data[f'{counter}_n_stud_impr_EE'] = comp_EE["n_students_improving"]     
-                    row_data[f'{counter}_n_avg_rank_impr_EE'] = comp_EE["average_rank_increase"]  
-                    row_data[f'{counter}_n_median_rank_impr_EE'] = comp_EE["median_rank_improvement"]    
+                    row_data[f'{counter}_avg_rank_impr_EE'] = comp_EE["average_rank_increase"]  
+                    row_data[f'{counter}_median_rank_impr_EE'] = comp_EE["median_rank_improvement"]    
                     if "SD_UPON_EADA" in sol_list:
                         row_data[f'{counter}_n_stud_impr_EADA'] = comp_EADA["n_students_improving"]     
-                        row_data[f'{counter}_n_avg_rank_impr_EADA'] = comp_EADA["average_rank_increase"]  
-                        row_data[f'{counter}_n_median_rank_impr_EADA'] = comp_EADA["median_rank_improvement"]  
+                        row_data[f'{counter}_avg_rank_impr_EADA'] = comp_EADA["average_rank_increase"]  
+                        row_data[f'{counter}_median_rank_impr_EADA'] = comp_EADA["median_rank_improvement"]  
 
                 counter = counter + 1
 
