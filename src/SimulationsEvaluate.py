@@ -10,9 +10,6 @@ from src.DA_STB import * # Generate DA assignment with single tie-breaking (STB)
 from src.ErdilErgin import * # Erdil & Ergil their implementation of Stable Improvement Cycles algorithm + alternative implementation DA
 from src.SICs import * # Adaptation of SICs algorithm to our code
 
-import random
-import pickle # to export data
-import pandas as pd
 from matplotlib.ticker import PercentFormatter
 
 def SimulationsEvaluate(S_vector: list[SolutionReport], name: str, print_out = False):

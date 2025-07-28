@@ -38,6 +38,7 @@ class SolutionReport:
     obj_master: list    # Objective values of master in iterations
     obj_pricing: list   # Objective values of pricing in iterations
     n_iter: int         # Number of iterations
+    n_match: int        # Number of matchings
     time_limit_exceeded: bool # Whether time limit is exceeded
     time_limit: int     # Time limit
     optimal: bool       # Optimality guaranteed?
@@ -699,7 +700,7 @@ class ModelColumnGen:
             S.time_limit_exceeded = False
             S.time = self.time_columnGen
             if print_out:
-                print("Average rank of heuristic: ", self.obj_master[-1])
+                print("Average rank of heuristic: \t", self.obj_master[-1])
         
         elif self.time_limit_exceeded == False:  
             # Optimal solution of master problem!
@@ -708,7 +709,7 @@ class ModelColumnGen:
             S.time = self.time_columnGen
             S.time_limit = self.time_limit
             if print_out:
-                print("Optimal solution found!\nBest average rank: ", self.obj_master[-1])
+                print("Optimal solution found!\nBest average rank: \t", self.obj_master[-1])
 
         else:
             # Time limit exceeded
@@ -720,7 +721,7 @@ class ModelColumnGen:
             if print_out:
                 print('\nTime limit of ', self.time_limit, "seconds exceeded!\n")
                 if self.bool_ColumnGen == True:
-                    print('Rank best found solution:', self.obj_master[-1])
+                    print('Rank best found solution:\t', self.obj_master[-1])
 
         S.avg_ranks = {}
         S.avg_ranks['result'] = self.obj_master[-1]
@@ -729,9 +730,9 @@ class ModelColumnGen:
         S.avg_ranks['DA'] = self.avg_rank_DA
 
         if print_out:
-            print("Rank first iteration: ", self.avg_rank_first_iter)
-            print("Rank warm start solution: ", self.avg_rank)
-            print("Original average rank: ", self.avg_rank_DA)
+            print("Rank first iteration: \t", self.avg_rank_first_iter)
+            print("Rank warm start solution: \t", self.avg_rank)
+            print("Original average rank: \t", self.avg_rank_DA)
 
         S.obj_master = self.obj_master
         S.obj_pricing = self.obj_pricing
@@ -748,6 +749,8 @@ class ModelColumnGen:
         # Store decomposition
         #self.Xdecomp = [] # Matchings in the found decomposition
         #self.Xdecomp_coeff = [] # Weights of these matchings
+
+        S.n_match = len(self.N_MATCH)
 
         for l in self.N_MATCH:
             #self.Xdecomp.append(np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools)))

@@ -20,6 +20,8 @@ def EADAM_STB(MyData: Data, n_iter: int, seed = 123456789, print_out = False):
     """
 
     permut = generate_permutations_STB(MyData, n_iter, seed, print_out)
+    n_iter = len(permut) # Needed in case there were very few students and we consider all permutations
+
 
     # For each of the permutations, break ties in the preferences and run Gale-Shapley algorithm on them
     M_sum = np.zeros(shape=(MyData.n_stud, MyData.n_schools)) # Will contain the final random_assignment
