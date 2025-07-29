@@ -3,6 +3,10 @@ import copy # To make deep copies
 import os
 from tqdm import tqdm # To show progress bar
     # If you import from tqdm.auto, it will import notebook version of tqdm automatically when in notebook
+import pandas as pd
+import csv
+import random
+import pickle # To export data
 
 
 # Comment out if pulp and gurobipy are already installed

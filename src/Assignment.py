@@ -27,7 +27,7 @@ class Assignment:
         - label (str, optional): A label for the assignment, used for file naming and visualization. Defaults to None.
         - M_set_in: the set of generated matchings (if any) to obtain the assignment
         - w_set_in: the set of weights used for the matchings to obtain the assignment (if any)
-            (w_set should be a dictionary)
+            (w_set_in should be a dictionary)
         """
         # self.file_name = MyData.file_name[:-4] 
             # Use this when importing .csv files, for example
@@ -59,7 +59,8 @@ class Assignment:
 
     
         # Export assignment
-        self.export_assignment()
+        if False:
+            self.export_assignment()
     
     # Visualize the assignment in different ways
     def visualize(self):

@@ -38,12 +38,14 @@ class SolutionReport:
     obj_master: list    # Objective values of master in iterations
     obj_pricing: list   # Objective values of pricing in iterations
     n_iter: int         # Number of iterations
+    n_match: int        # Number of matchings
     time_limit_exceeded: bool # Whether time limit is exceeded
     time_limit: int     # Time limit
     optimal: bool       # Optimality guaranteed?
     time: float         # Time used
-    Xdecomp: list       # Matchings in the found decomposition
-    Xdecomp_coeff: list # Weights of these matchings
+    #Xdecomp: list       # Matchings in the found decomposition
+    #Xdecomp_coeff: list # Weights of these matchings
+    bool_ColumnGen: bool # True if column generation if performed, False if only first step is performed
     #... 
 
 
@@ -208,7 +210,7 @@ class ModelColumnGen:
       
     def add_matching(self, M_in: np.ndarray, index, print_out: bool):
         """
-        Function to add a matching M as a decision variable to the master proble
+        Function to add a matching M as a decision variable to the master problem
         Index is the index of the matching in the master problem
         """  
         
@@ -261,7 +263,7 @@ class ModelColumnGen:
 
 
         
-    def Solve(self, stab_constr: str, solver: str, print_log: str, time_limit: int, print_out: bool):
+    def Solve(self, stab_constr: str, solver: str, print_log: str, time_limit: int, n_sol_pricing: int, gap_solutionpool_pricing: float, MIPGap: float, bool_ColumnGen: bool, print_out: bool):
         """
         Solves the formulation using column generation.
         Returns an instance from the Assignment class.
@@ -274,8 +276,17 @@ class ModelColumnGen:
             solver (str): controls which solver is used. See options through following commands:
                 solver_list = pl.listSolvers(onlyAvailable=True)
                 print(solver_list)
+            print_log: print output of solver on screen?
+            time_limit: in s
+            n_sol_pricing: number of solutions returned by pricing problem
+            gap_solutionpool_pricing: optimality gap used for the solutions included in the solution pool in the pricing problem
+            MIPGap: gap for pricing problem
             print_out (bool): boolean that controls which output is printed.
+            bool_ColumnGen (bool): if True: perform entire column generation for time_limit period
+                            if False: only perform first iteration, and don't build pricing problem
         """
+        self.bool_ColumnGen = bool_ColumnGen
+        
         # Compute average rank of current assignment
         self.avg_rank_DA = 0
         for (i,j) in self.PAIRS:
@@ -311,7 +322,8 @@ class ModelColumnGen:
 
         #### PRICING PROBLEM ####
         # Defined in separate function
-        self.build_pricing(stab_constr, print_out)
+        if bool_ColumnGen == True:
+            self.build_pricing(stab_constr, print_out)
 
        
         
@@ -341,6 +353,8 @@ class ModelColumnGen:
             # String can't be used as the argument in solve method, so convert it like this:
             solver_function = globals()[solver]  # Retrieves the GUROBI function or class
         
+            #self.master.writeLP("TestColumnFormulation.lp")
+
             # Solve the formulation
             if print_log == False:
                 self.master.solve(solver_function(msg = False, logPath = "Logfile_master.log", warmStart = True))
@@ -359,179 +373,223 @@ class ModelColumnGen:
 
             # Check if the time limit is exceeded
             current_time = time.monotonic()
-            if current_time - starting_time > time_limit:
-                optimal = True
-                self.time_limit_exceeded = True
-                return self.generate_solution_report(print_out)
 
             #if print_out:
             #    for m in self.N_MATCH:
             #        print("w_", m, self.w[m].value())
             
-            #### SOLVE PRICING ####
-            # Get dual variables
-            duals = {}
-            
-            duals["Sum_to_one"] = self.master.constraints["Sum_to_one"].pi
-
-            for i in self.STUD:
-                for j in range(len(self.MyData.pref[i])):
-                    school_name = self.MyData.pref_index[i][j]
-                    name_duals = "Mu_" +  str(self.MyData.ID_stud[i]) + "_" + str(school_name)
-                    name_constr = "FOSD_" +  str(self.MyData.ID_stud[i]) + "_" + str(school_name)
-                        
-                    duals[name_duals]=self.master.constraints[name_constr].pi
-
-            #for m in self.N_MATCH:
-            #    name_GE = 'GE0_' + str(m)
-            #    duals[name_GE] = self.master.constraints[name_GE].pi
-            #if print_out:
-            #    print(duals)
-            
-            #for name in duals:
-            #    if duals[name] > 0:
-            #        print(name, duals[name])
-                
-            # Modify objective function pricing problem
-            # Careful, don't add constant terms, won't be taken into consideration!
-            pricing_obj = LpAffineExpression()
-            for i in self.STUD:
-                #print('student ', i)
-                for j in range(len(self.MyData.pref[i])):
-                    school_name = self.MyData.pref_index[i][j]
-                    pricing_obj -= self.M_pricing[i,school_name] * (self.MyData.rank_pref[i,school_name]+ 1) / self.MyData.n_stud # + 1 because the indexing starts from zero
-                    #print('  school ', school_name, -(self.MyData.rank_pref[i,school_name]+ 1) / self.MyData.n_stud)
-                    for k in range(j+1):
-                        pref_school = self.MyData.pref_index[i][k]
-                        name = "Mu_" +  str(self.MyData.ID_stud[i]) + "_" + str(pref_school)
-                        pricing_obj += self.M_pricing[i,pref_school] * duals[name]
-                        #print('      school ', pref_school, duals[name])
-
-            #if print_out:
-            #    print(pricing_obj)
-            #print("Duals Sum_to_one", duals["Sum_to_one"])
-            #print("Duals", duals)
-
-
-            self.pricing.setObjective(pricing_obj)
-
-
-            
-            #self.pricing.writeLP("PricingProblem.lp")
-
-            # Add the constant terms!
-            constant = 0
-            constant += duals['Sum_to_one']
-                # This constant term will not be printed in the objective function in the .lp file, I think
-
-            #for m in self.N_MATCH:
-            #    name_GE = 'GE0_' + str(m)
-                #constant += duals[name_GE]
-            if print_out:
-                print("Constant term", constant)
-            
-            # Solve modified pricing problem
-            if print_out:
-                print("\n ****** PRICING ****** \n")
-            
-            constant_str = str(constant)
-
-            # Add warm start to pricing problem by referring to previously found solution
-            #for (i,j) in self.PAIRS:
-            #    self.M_pricing[(i,j)].setInitialValue(self.M_list[-1][i][j])
-            
-            # Update time limit:
-            current_time = time.monotonic()
-            new_time_limit = max(time_limit - (current_time - starting_time), 0)
-            if print_out:
-                print('New time limit', new_time_limit)
-
-            if print_log == True:  
-                #self.pricing.solve(solver_function())
-                
-                self.pricing.solve(solver_function(timeLimit = new_time_limit, BestObjStop = -constant +0.0001))
-                # Will stop the solver once a matching with objective function at least zero has been found
-                #self.pricing.solve(solver_function())
-
-            else:
-                #self.pricing.solve(solver_function(msg=False, logPath = 'Logfile_pricing.log'))
-                with open(os.devnull, 'w') as devnull:
-                    with redirect_stdout(devnull):
-                        self.pricing.solve(solver_function(msg=False, timeLimit=new_time_limit, logPath = 'Logfile_pricing.log',BestObjStop = -constant + 0.0001))
-                #self.pricing.solve(solver_function(msg=False, logPath = 'Logfile_pricing.log'))
-            
-
-            # If not infeasible:
-
-            
-            if self.pricing.status not in [0,-1]:
-                #print("Status code: ", self.pricing.status)
-                obj_pricing_var = self.pricing.objective.value() + constant
-                self.obj_pricing.append(obj_pricing_var)
-                if print_out:
-                    print("\t\tObjective pricing: ", obj_pricing_var)
-
-            #if print_out:
-            if False:
-                for (i,j) in self.PAIRS:
-                    print("M[",i,j,'] =', self.M_pricing[i,j].value())
-            
-            #### EVALUATE SOLUTION ####
-            if print_out:
-                print('Pricing status', self.pricing.status)
-            if self.pricing.status == 0: # Time limit exceeded
-                self.time_limit_exceeded = True
+            if bool_ColumnGen == False: # You don't want to run entire column generation procedure
+                # Create solution report
+                self.time_limit_exceeded = False
                 optimal = False
-                self.time_columnGen = self.time_limit
+                self.time_columnGen = current_time - starting_time
                 return self.generate_solution_report(print_out) 
-            
-            elif self.pricing.status != -1:            
-                if obj_pricing_var > 0:
-                    # The solution of the master problem is not optimal over all weakly stable matchings
-                    
-                    # Add non-negativity constraint to the master for this new matching
-                    #name = 'GE0_' + str(len(self.w))
-                    #self.constraints[name] = LpConstraintVar(name, LpConstraintGE, 0)
-                    #self.master += self.constraints[name]
-                    
-                    # Add the matching found by the pricing problem to the master problem       
-                    found_M = np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools))
-                    for (i,j) in self.PAIRS:
-                        found_M[i][j] = self.M_pricing[i,j].value()
-                    #print('Found_M', found_M)
-                    
-                    self.add_matching(found_M, len(self.w), print_out)
-                    
-                    self.M_list.append(found_M)
-                    self.nr_matchings += 1
-                    if print_out:
-                        print("New number of matchings:", self.nr_matchings)
 
-                    self.N_MATCH = range(self.nr_matchings)
+            elif bool_ColumnGen == True: # Only if you want to continue with the column generation procedure.
+                if current_time - starting_time > time_limit:
+                    optimal = True
+                    self.time_limit_exceeded = True
+                    self.time_columnGen = current_time - starting_time
+                    return self.generate_solution_report(print_out)
+                
+                ## SOLVE PRICING ####
+                # Get dual variables
+                duals = {}
+                
+                duals["Sum_to_one"] = self.master.constraints["Sum_to_one"].pi
 
-                    # Exclude this matching from being find by the pricing problem in the future.
-                    self.pricing += lpSum([self.M_pricing[i,j] * found_M[i][j] for (i,j) in self.PAIRS]) <= lpSum([found_M[i][j] for (i,j) in self.PAIRS]) - 1, f"EXCL_M_{self.nr_matchings-1}"
+                for i in self.STUD:
+                    for j in range(len(self.MyData.pref[i])):
+                        school_name = self.MyData.pref_index[i][j]
+                        name_duals = "Mu_" +  str(self.MyData.ID_stud[i]) + "_" + str(school_name)
+                        name_constr = "FOSD_" +  str(self.MyData.ID_stud[i]) + "_" + str(school_name)
+                            
+                        duals[name_duals]=self.master.constraints[name_constr].pi
+
+                #for m in self.N_MATCH:
+                #    name_GE = 'GE0_' + str(m)
+                #    duals[name_GE] = self.master.constraints[name_GE].pi
+                #if print_out:
+                #    print(duals)
+                
+                #for name in duals:
+                #    if duals[name] > 0:
+                #        print(name, duals[name])
                     
-                    #print("Matching added.")
-                    #if print_out:
-                    #    print(found_M)
+                # Modify objective function pricing problem
+                # Careful, don't add constant terms, won't be taken into consideration!
+                pricing_obj = LpAffineExpression()
+                for i in self.STUD:
+                    #print('student ', i)
+                    for j in range(len(self.MyData.pref[i])): 
+                        school_name = self.MyData.pref_index[i][j]
+                        pricing_obj -= self.M_pricing[i,school_name] * (self.MyData.rank_pref[i,school_name]+ 1) / self.MyData.n_stud # + 1 because the indexing starts from zero
+                        #print('  school ', school_name, -(self.MyData.rank_pref[i,school_name]+ 1) / self.MyData.n_stud)
+                        for k in range(j+1):
+                            pref_school = self.MyData.pref_index[i][k]
+                            name = "Mu_" +  str(self.MyData.ID_stud[i]) + "_" + str(pref_school)
+                            pricing_obj += self.M_pricing[i,pref_school] * duals[name]
+                            #print('      school ', pref_school, duals[name])
 
-                    #if self.iterations == 10:
-                    #    optimal = True
-                    #    print("Process terminated after ", self.iterations, " iterations.")
-                    self.iterations = self.iterations + 1                
+                #if print_out:
+                #    print(pricing_obj)
+                #print("Duals Sum_to_one", duals["Sum_to_one"])
+                #print("Duals", duals)
 
+
+                self.pricing.setObjective(pricing_obj)
+                
+                #self.pricing.writeLP("PricingProblem.lp")
+
+                # Add the constant terms!
+                constant = 0
+                constant += duals['Sum_to_one']
+                    # This constant term will not be printed in the objective function in the .lp file, I think
+
+                #for m in self.N_MATCH:
+                #    name_GE = 'GE0_' + str(m)
+                    #constant += duals[name_GE]
+                if print_out:
+                    print("Constant term", constant)
+                
+                # Solve modified pricing problem
+                if print_out:
+                    print("\n ****** PRICING ****** \n")
+                
+                constant_str = str(constant)
+                
+                # Update time limit:
+                current_time = time.monotonic()
+                new_time_limit = max(time_limit - (current_time - starting_time), 0)
+                if print_out:
+                    print('New time limit', new_time_limit)
+
+                if print_log == True:  
+                    #self.pricing.solve(solver_function())
                     
+                    #self.pricing.solve(solver_function(timeLimit = new_time_limit, BestObjStop = -constant +0.0001))
+                    self.pricing.solve(solver_function(timeLimit = new_time_limit,
+                    PoolGap = gap_solutionpool_pricing,
+                    PoolSolutions = n_sol_pricing,
+                    PoolSearchMode = 2, #Find diverse solutions
+                    MIPGap = MIPGap)) 
+
+                    # Will stop the solver once a matching with objective function at least zero has been found
+                    #self.pricing.solve(solver_function())
+
                 else:
-                    optimal = True  
+                    #self.pricing.solve(solver_function(msg=False, logPath = 'Logfile_pricing.log'))
+                    with open(os.devnull, 'w') as devnull:
+                        with redirect_stdout(devnull):
+                            #self.pricing.solve(solver_function(msg=False, timeLimit=new_time_limit, logPath = 'Logfile_pricing.log',BestObjStop = -constant + 0.0001))
+                            self.pricing.solve(solver_function(msg=False, logPath = 'Logfile_pricing.log',timeLimit = new_time_limit,
+                    PoolGap = gap_solutionpool_pricing,
+                    PoolSolutions = n_sol_pricing,
+                    PoolSearchMode = 2,
+                    MIPGap = MIPGap))
+                    #self.pricing.solve(solver_function(msg=False, logPath = 'Logfile_pricing.log'))
+                
+
+                # If not infeasible:
+
+                
+                if self.pricing.status not in [0,-1]: # -1 is infeasible, 0 is unsolved (for example because interrupted earlier, or timelimit reached)
+                    #print("Status code: ", self.pricing.status)
+                    obj_pricing_var = self.pricing.objective.value() + constant
+                    self.obj_pricing.append(obj_pricing_var)
+                    if print_out:
+                        print("\t\tObjective pricing: ", obj_pricing_var)
+
+                #if print_out:
+                if False:
+                    for (i,j) in self.PAIRS:
+                        print("M[",i,j,'] =', self.M_pricing[i,j].value())
+                
+                #### EVALUATE SOLUTION ####
+                if print_out:
+                    print('Pricing status', self.pricing.status)
+                if self.pricing.status == 0: # Time limit exceeded
+                    self.time_limit_exceeded = True
+                    optimal = False
+                    self.time_columnGen = self.time_limit
+                    return self.generate_solution_report(print_out) 
+                
+                elif self.pricing.status != -1:            
+                    if obj_pricing_var > 0:
+                        # The solution of the master problem is not optimal over all weakly stable matchings
+                        
+                        # Add non-negativity constraint to the master for this new matching
+                        #name = 'GE0_' + str(len(self.w))
+                        #self.constraints[name] = LpConstraintVar(name, LpConstraintGE, 0)
+                        #self.master += self.constraints[name]
+
+                        # Go through all generated solutions.
+                        # To do this, first we should extract the gurobi model and access the solution pool through there.
+                        pricing_gurobi = self.pricing.solverModel
+
+                        n_sol_found = pricing_gurobi.SolCount
+
+                        if print_out:
+                            print('Solutions found by pricing:', n_sol_found)
+
+                        # Go through all matchings
+                        for t in range(n_sol_found):
+
+                            pricing_gurobi.setParam('SolutionNumber', t)
+
+                            # Add the matching found by the pricing problem to the master problem       
+                            found_M = np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools))
+
+                            # Find all variables by name
+                            for (i,j) in self.PAIRS:
+                                student_name = self.MyData.ID_stud[i]
+                                school_name = self.MyData.ID_school[j]
+                                name_var = f"M_{student_name}_{school_name}"
+                                gurobi_var = pricing_gurobi.getVarByName(name_var)
+                                found_M[i][j] = gurobi_var.Xn
+                                
+                            self.add_matching(found_M, len(self.w), print_out)
+                            #self.master.writeLP("TestColumnFormulation.lp")
+                        
+                            self.M_list.append(found_M)
+                            self.nr_matchings += 1
+
+                            
+                            # Exclude this matching from being find by the pricing problem in the future.
+                            self.pricing += lpSum([self.M_pricing[i,j] * found_M[i][j] for (i,j) in self.PAIRS]) <= lpSum([found_M[i][j] for (i,j) in self.PAIRS]) - 1, f"EXCL_M_{self.nr_matchings-1}"
+                    
+
+                            if print_out:  
+                                if t == 0:                          
+                                    print("Matching ", self.nr_matchings, "Objective value pricing:", pricing_gurobi.PoolObjVal + constant)
+                                elif t == n_sol_found - 1:
+                                    print("Matching ", self.nr_matchings, "Objective value pricing:", pricing_gurobi.PoolObjVal + constant)
+
+                        if print_out:
+                            print("New number of matchings:", self.nr_matchings)
+
+                        self.N_MATCH = range(self.nr_matchings)
+    
+                        #print("Matching added.")
+                        #if print_out:
+                        #    print(found_M)
+
+                        #if self.iterations == 10:
+                        #    optimal = True
+                        #    print("Process terminated after ", self.iterations, " iterations.")
+                        self.iterations = self.iterations + 1                
+
+                        
+                    else:
+                        optimal = True  
+                        current_time = time.monotonic()
+                        self.time_columnGen = current_time - starting_time
+                        return self.generate_solution_report(print_out)    
+                else:
+                    optimal = True
                     current_time = time.monotonic()
                     self.time_columnGen = current_time - starting_time
-                    return self.generate_solution_report(print_out)    
-            else:
-                optimal = True
-                current_time = time.monotonic()
-                self.time_columnGen = current_time - starting_time
-                return self.generate_solution_report(print_out)     
+                    return self.generate_solution_report(print_out)     
 
 
             
@@ -542,10 +600,12 @@ class ModelColumnGen:
 
         # Decision variables
         self.M_pricing = LpVariable.dicts("M", [(i, j) for i, j in self.PAIRS], cat="Binary")
+
         # Rename M
         for i, j in self.M_pricing:
             student_name = self.MyData.ID_stud[i]
             school_name = self.MyData.ID_school[j]
+
             self.M_pricing[i, j].name = f"M_{student_name}_{school_name}"
 
         ### CONSTRAINTS ###
@@ -629,68 +689,33 @@ class ModelColumnGen:
             self.pricing += lpSum([self.M_pricing[i,j] * self.M_list[l][i][j] for (i,j) in self.PAIRS]) <= lpSum([self.M_list[l][i][j] for (i,j) in self.PAIRS]) - 1, f"EXCL_M_{l}"
         
 
-    def pricing_opt_solution(self, avg_rank_DA, avg_rank, print_out: str):
-        
-        if self.time_limit_exceeded == False:  
-            # Optimal solution of master problem!
-            if print_out:
-                print("Optimal solution found!\nBest average rank: ", self.obj_master[-1])
-
-        else:
-            # Time limit exceeded
-            if print_out:
-                print('\nTime limit of ', self.time_limit, "seconds exceeded!\n")
-                print('Rank best found solution:', self.obj_master[-1])
-        
-        if print_out:
-            print("Rank warm start solution: ", avg_rank)
-            print("Original average rank: ", avg_rank_DA)
-
-        if print_out:
-            if self.pricing.status == -1:
-                if print_out:
-                    print('Pricing problem INFEASIBLE')
-            else:
-                if print_out:
-                    print('Objective pricing problem: ', self.obj_pricing[-1])
-
-                    
-        # Save the final solution
-        # Create variables to store the solution in
-        self.Xdecomp = [] # Matchings in the found decomposition
-        self.Xdecomp_coeff = [] # Weights of these matchings
-        zero = np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools))
-        self.Xassignment = Assignment(self.MyData, zero) # Contains the final assignment found by the model
-        
-        # Make sure assignment is empty in Xassignment
-        self.Xassignment.assignment = np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools))
-
-        # Store decomposition
-        self.Xdecomp = [] # Matchings in the found decomposition
-        self.Xdecomp_coeff = [] # Weights of these matchings
-
-        for l in self.N_MATCH:
-            self.Xdecomp.append(np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools)))
-            self.Xdecomp_coeff.append(self.w[l].varValue)
-            for (i,j) in self.PAIRS:
-                self.Xdecomp[-1][i,j] = self.M_list[l][i][j]
-                self.Xassignment.assignment[i,j] += self.w[l].varValue * self.M_list[l][i][j]
-                
-        
-        return self.Xassignment
     
     def generate_solution_report(self, print_out = False):
         # Store everything in a solution report
         S = SolutionReport()
 
-        if self.time_limit_exceeded == False:  
+        if self.master.status == -1: # If the master problem is infeasible (e.g., because we can't sd-dominate EADA)
+            S.optimal = False
+            S.time_limit_exceeded = False
+            S.time = self.time_columnGen
+            if print_out:
+                print("INFEASIBLE master problem, could not find an ex-post stable assignment that sd-dominates given assignment.\n")
+
+        elif self.bool_ColumnGen == False:
+            S.optimal = False
+            S.time_limit_exceeded = False
+            S.time = self.time_columnGen
+            if print_out:
+                print("Average rank of heuristic: \t", self.obj_master[-1])
+        
+        elif self.time_limit_exceeded == False:  
             # Optimal solution of master problem!
             S.optimal = True
             S.time_limit_exceeded = False
             S.time = self.time_columnGen
             S.time_limit = self.time_limit
             if print_out:
-                print("Optimal solution found!\nBest average rank: ", self.obj_master[-1])
+                print("Optimal solution found!\nBest average rank: \t", self.obj_master[-1])
 
         else:
             # Time limit exceeded
@@ -701,50 +726,75 @@ class ModelColumnGen:
 
             if print_out:
                 print('\nTime limit of ', self.time_limit, "seconds exceeded!\n")
-                print('Rank best found solution:', self.obj_master[-1])
-
+                if self.bool_ColumnGen == True:
+                    print('Rank best found solution:\t', self.obj_master[-1])
+        
         S.avg_ranks = {}
-        S.avg_ranks['result'] = self.obj_master[-1]
-        S.avg_ranks['first_iter']  = self.avg_rank_first_iter
-        S.avg_ranks['warm_start'] = self.avg_rank
-        S.avg_ranks['DA'] = self.avg_rank_DA
 
-        if print_out:
-            print("Rank first iteration: ", self.avg_rank_first_iter)
-            print("Rank warm start solution: ", self.avg_rank)
-            print("Original average rank: ", self.avg_rank_DA)
+        if self.master.status == -1: # If master problem infeasible
+            S.avg_ranks['result'] = None
+            S.avg_ranks['first_iter']  = None
+            S.avg_ranks['warm_start'] = self.avg_rank
+            S.avg_ranks['DA'] = self.avg_rank_DA
 
-        S.obj_master = self.obj_master
-        S.obj_pricing = self.obj_pricing
+            # Save the final solution
+            # Create variables to store the solution in
+            
+            zero = np.full((self.MyData.n_stud, self.MyData.n_schools), np.nan)
+            self.Xassignment = Assignment(self.MyData, zero) # Contains the final assignment found by the model
+            
+            # Make sure assignment is empty in Xassignment
+            self.Xassignment.assignment = np.full((self.MyData.n_stud, self.MyData.n_schools), np.nan)
 
-        # Save the final solution
-        # Create variables to store the solution in
-        self.Xdecomp = [] # Matchings in the found decomposition
-        self.Xdecomp_coeff = [] # Weights of these matchings
-        zero = np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools))
-        self.Xassignment = Assignment(self.MyData, zero) # Contains the final assignment found by the model
-        
-        # Make sure assignment is empty in Xassignment
-        self.Xassignment.assignment = np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools))
+            # Store decomposition
+            #self.Xdecomp = [] # Matchings in the found decomposition
+            #self.Xdecomp_coeff = [] # Weights of these matchings
 
-        # Store decomposition
-        self.Xdecomp = [] # Matchings in the found decomposition
-        self.Xdecomp_coeff = [] # Weights of these matchings
+        else : # If NOT infeasible
+            S.avg_ranks['result'] = self.obj_master[-1]
+            S.avg_ranks['first_iter']  = self.avg_rank_first_iter
+            S.avg_ranks['warm_start'] = self.avg_rank
+            S.avg_ranks['DA'] = self.avg_rank_DA
 
-        for l in self.N_MATCH:
-            self.Xdecomp.append(np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools)))
-            self.Xdecomp_coeff.append(self.w[l].varValue)
-            for (i,j) in self.PAIRS:
-                self.Xdecomp[-1][i,j] = self.M_list[l][i][j]
-                self.Xassignment.assignment[i,j] += self.w[l].varValue * self.M_list[l][i][j]
-        
-        S.Xdecomp = self.Xdecomp
-        S.Xdecomp_coeff = self.Xdecomp_coeff
+            if print_out:
+                print("Rank first iteration: \t", self.avg_rank_first_iter)
+                print("Rank warm start solution: \t", self.avg_rank)
+                print("Original average rank: \t", self.avg_rank_DA)
+
+            S.obj_master = self.obj_master
+            S.obj_pricing = self.obj_pricing
+
+            # Save the final solution
+            # Create variables to store the solution in
+            
+            zero = np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools))
+            self.Xassignment = Assignment(self.MyData, zero) # Contains the final assignment found by the model
+            
+            # Make sure assignment is empty in Xassignment
+            self.Xassignment.assignment = np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools))
+
+            # Store decomposition
+            #self.Xdecomp = [] # Matchings in the found decomposition
+            #self.Xdecomp_coeff = [] # Weights of these matchings
+
+
+            for l in self.N_MATCH:
+                #self.Xdecomp.append(np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools)))
+                #self.Xdecomp_coeff.append(self.w[l].varValue)
+                for (i,j) in self.PAIRS:
+                #    self.Xdecomp[-1][i,j] = self.M_list[l][i][j]
+                    self.Xassignment.assignment[i,j] += self.w[l].varValue * self.M_list[l][i][j]
+            
+        #S.Xdecomp = self.Xdecomp
+        #S.Xdecomp_coeff = self.Xdecomp_coeff
         S.A = copy.deepcopy(self.Xassignment)
 
         S.A_SIC = copy.deepcopy(self.p)
         S.A_DA_prob = copy.deepcopy(self.p_DA)
 
         S.iter = self.iterations
+        S.n_match = len(self.N_MATCH)
+
+        S.bool_ColumnGen = self.bool_ColumnGen
 
         return S

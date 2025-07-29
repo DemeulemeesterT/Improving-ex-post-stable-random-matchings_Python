@@ -19,7 +19,8 @@ def read_dataEstonia(file_path):
         pref[ID_stud.index(student)] = student_prefs
 
     # Determine walking groups
-    tresholds = [1000, 2000, 4000, 7000]
+    #tresholds = [1000, 2000, 4000, 7000]
+    tresholds = [4000]
     n_groups = len(tresholds) + 1
 
     
