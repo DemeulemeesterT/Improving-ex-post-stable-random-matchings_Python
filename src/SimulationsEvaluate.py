@@ -47,7 +47,8 @@ def AvgRankImpr_percent(df: pd.DataFrame, name: str, beta_in:float, print_out = 
     n_sol_methods = df["#_sol_methods"].iloc[0]
     labels = []
     legend = []
-    for i in range(1, n_sol_methods):
+    for i in range(1, n_sol_methods+1):
+        print('i',i, ' of ', n_sol_methods)
         labels.append(df[f'sol_{i}_label'].iloc[0])
         if df[f'sol_{i}_label'].iloc[0] == "SD_UPON_DA":
             legend.append("LP-heur DA")
@@ -72,18 +73,20 @@ def AvgRankImpr_percent(df: pd.DataFrame, name: str, beta_in:float, print_out = 
 
     max_diff = df_avg['DiffResult1'].max()
 
+    print(df_avg)
+
     for n_stud in df_avg['n_stud'].unique():
         df_n = df_avg[df_avg['n_stud'] == n_stud]
         plt.figure(figsize=(5,4))
-        plt.scatter(df_n['alpha'], df_n['DiffEE'], label = "Erdil & Ergin")
-        plt.scatter(df_n['alpha'], df_n['DiffEADA'], label = "EADA")
+        plt.plot(df_n['alpha'], df_n['DiffEE'], label = "Erdil & Ergin")
+        plt.plot(df_n['alpha'], df_n['DiffEADA'], label = "EADA")
         counter = 1
         for s in labels:
-            plt.scatter(df_n['alpha'], df_n[f'DiffHeur{counter}'], label = labels[counter - 1] + ' (heuristic)')
+            plt.plot(df_n['alpha'], df_n[f'DiffHeur{counter}'], label = labels[counter - 1] + ' (heuristic)')
             # Check if better result column generation
             df_n['differs'] = (df_n[f'DiffHeur{counter}'] - df_n[f'DiffResult{counter}']).abs() >= 0.0001
             if df_n['differs'].any == True:
-                 plt.scatter(df_n['alpha'], df_n[f'DiffResult{counter}'], label = labels[counter - 1] + ' (CG)')
+                 plt.plot(df_n['alpha'], df_n[f'DiffResult{counter}'], label = labels[counter - 1] + ' (CG)')
             counter = counter  +1
 
         plt.xlabel("alpha")

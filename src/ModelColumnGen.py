@@ -378,7 +378,6 @@ class ModelColumnGen:
             #    for m in self.N_MATCH:
             #        print("w_", m, self.w[m].value())
             
-            
             if bool_ColumnGen == False: # You don't want to run entire column generation procedure
                 # Create solution report
                 self.time_limit_exceeded = False
@@ -695,7 +694,14 @@ class ModelColumnGen:
         # Store everything in a solution report
         S = SolutionReport()
 
-        if self.bool_ColumnGen == False:
+        if self.master.status == -1: # If the master problem is infeasible (e.g., because we can't sd-dominate EADA)
+            S.optimal = False
+            S.time_limit_exceeded = False
+            S.time = self.time_columnGen
+            if print_out:
+                print("INFEASIBLE master problem, could not find an ex-post stable assignment that sd-dominates given assignment.\n")
+
+        elif self.bool_ColumnGen == False:
             S.optimal = False
             S.time_limit_exceeded = False
             S.time = self.time_columnGen
@@ -722,47 +728,68 @@ class ModelColumnGen:
                 print('\nTime limit of ', self.time_limit, "seconds exceeded!\n")
                 if self.bool_ColumnGen == True:
                     print('Rank best found solution:\t', self.obj_master[-1])
-
+        
         S.avg_ranks = {}
-        S.avg_ranks['result'] = self.obj_master[-1]
-        S.avg_ranks['first_iter']  = self.avg_rank_first_iter
-        S.avg_ranks['warm_start'] = self.avg_rank
-        S.avg_ranks['DA'] = self.avg_rank_DA
 
-        if print_out:
-            print("Rank first iteration: \t", self.avg_rank_first_iter)
-            print("Rank warm start solution: \t", self.avg_rank)
-            print("Original average rank: \t", self.avg_rank_DA)
+        if self.master.status == -1: # If master problem infeasible
+            S.avg_ranks['result'] = None
+            S.avg_ranks['first_iter']  = None
+            S.avg_ranks['warm_start'] = self.avg_rank
+            S.avg_ranks['DA'] = self.avg_rank_DA
 
-        S.obj_master = self.obj_master
-        S.obj_pricing = self.obj_pricing
+            # Save the final solution
+            # Create variables to store the solution in
+            
+            zero = np.full((self.MyData.n_stud, self.MyData.n_schools), np.nan)
+            self.Xassignment = Assignment(self.MyData, zero) # Contains the final assignment found by the model
+            
+            # Make sure assignment is empty in Xassignment
+            self.Xassignment.assignment = np.full((self.MyData.n_stud, self.MyData.n_schools), np.nan)
 
-        # Save the final solution
-        # Create variables to store the solution in
-        
-        zero = np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools))
-        self.Xassignment = Assignment(self.MyData, zero) # Contains the final assignment found by the model
-        
-        # Make sure assignment is empty in Xassignment
-        self.Xassignment.assignment = np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools))
+            # Store decomposition
+            #self.Xdecomp = [] # Matchings in the found decomposition
+            #self.Xdecomp_coeff = [] # Weights of these matchings
 
-        # Store decomposition
-        #self.Xdecomp = [] # Matchings in the found decomposition
-        #self.Xdecomp_coeff = [] # Weights of these matchings
+        else : # If NOT infeasible
+            S.avg_ranks['result'] = self.obj_master[-1]
+            S.avg_ranks['first_iter']  = self.avg_rank_first_iter
+            S.avg_ranks['warm_start'] = self.avg_rank
+            S.avg_ranks['DA'] = self.avg_rank_DA
 
-        S.n_match = len(self.N_MATCH)
+            if print_out:
+                print("Rank first iteration: \t", self.avg_rank_first_iter)
+                print("Rank warm start solution: \t", self.avg_rank)
+                print("Original average rank: \t", self.avg_rank_DA)
 
-        for l in self.N_MATCH:
-            #self.Xdecomp.append(np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools)))
-            #self.Xdecomp_coeff.append(self.w[l].varValue)
-            for (i,j) in self.PAIRS:
-            #    self.Xdecomp[-1][i,j] = self.M_list[l][i][j]
-                self.Xassignment.assignment[i,j] += self.w[l].varValue * self.M_list[l][i][j]
-        
+            S.obj_master = self.obj_master
+            S.obj_pricing = self.obj_pricing
+
+            # Save the final solution
+            # Create variables to store the solution in
+            
+            zero = np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools))
+            self.Xassignment = Assignment(self.MyData, zero) # Contains the final assignment found by the model
+            
+            # Make sure assignment is empty in Xassignment
+            self.Xassignment.assignment = np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools))
+
+            # Store decomposition
+            #self.Xdecomp = [] # Matchings in the found decomposition
+            #self.Xdecomp_coeff = [] # Weights of these matchings
+
+            S.n_match = len(self.N_MATCH)
+
+            for l in self.N_MATCH:
+                #self.Xdecomp.append(np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools)))
+                #self.Xdecomp_coeff.append(self.w[l].varValue)
+                for (i,j) in self.PAIRS:
+                #    self.Xdecomp[-1][i,j] = self.M_list[l][i][j]
+                    self.Xassignment.assignment[i,j] += self.w[l].varValue * self.M_list[l][i][j]
+            
         #S.Xdecomp = self.Xdecomp
         #S.Xdecomp_coeff = self.Xdecomp_coeff
         S.A = copy.deepcopy(self.Xassignment)
-
+        
         S.A_SIC = copy.deepcopy(self.p)
         S.A_DA_prob = copy.deepcopy(self.p_DA)
 
