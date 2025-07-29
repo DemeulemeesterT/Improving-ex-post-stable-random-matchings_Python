@@ -83,7 +83,16 @@ def AvgRankImpr_percent(df: pd.DataFrame, name: str, beta_in:float, print_out = 
         # 'numeric_only' enforces that non-numeric columns are not averaged (like labels)
         # Last command resets indices to keep using them as colummns
 
-
+    # Add column to count how many times EADA couldn't be sd-dominated for the parameters
+    counter =1 
+    for s in labels:
+        if s == "SD_UPON_EADA":
+            nan_counts = df.groupby(['n_stud', 'n_schools', 'alpha', 'beta'])[f'{counter}_avg_rank_heur']\
+               .apply(lambda x: x.isna().sum())\
+               .reset_index(name='n_nans_sd_dom_EADA')
+            
+            df_avg = df_avg.merge(nan_counts, on=['n_stud', 'n_schools', 'alpha', 'beta'])
+        counter = counter + 1
 
     #print(df_avg)
 
@@ -91,7 +100,7 @@ def AvgRankImpr_percent(df: pd.DataFrame, name: str, beta_in:float, print_out = 
 
     max_diff = df_avg['DiffResult1'].max()
 
-    print(df_avg[['n_stud', 'n_schools', 'alpha', 'beta', 'DiffHeur1', 'DiffHeur2', "DiffHeur3", "3_avg_rank_heur"]])
+    print(df_avg[['n_stud', 'n_schools', 'alpha', 'beta', 'DiffHeur1', 'DiffHeur2', "DiffHeur3", "3_avg_rank_heur", "n_nans_sd_dom_EADA", "3_n_stud_impr_EADA", "3_avg_rank_impr_EADA"]])
 
     for n_stud in df_avg['n_stud'].unique():
         df_n = df_avg[df_avg['n_stud'] == n_stud]
@@ -102,7 +111,7 @@ def AvgRankImpr_percent(df: pd.DataFrame, name: str, beta_in:float, print_out = 
         for s in labels:
             plt.plot(df_n['alpha'], df_n[f'DiffHeur{counter}'], label = labels[counter - 1] + ' (heuristic)')
             # Check if better result column generation
-            df_n['differs'] = (df_n[f'DiffHeur{counter}'] - df_n[f'DiffResult{counter}']).abs() >= 0.0001
+            df_n['differs'] = (df_n[f'DiffHeur{counter}'] - df_n[f'DiffResult{counter}']).abs() >= 0.001
             if df_n['differs'].any == True:
                  plt.plot(df_n['alpha'], df_n[f'DiffResult{counter}'], label = labels[counter - 1] + ' (CG)')
             counter = counter  +1
