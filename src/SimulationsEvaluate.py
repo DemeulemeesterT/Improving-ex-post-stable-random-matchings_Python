@@ -39,11 +39,6 @@ def SimulationsEvaluate(file_name: str, print_out = False):
 def AvgRankImpr_percent(df: pd.DataFrame, name: str, beta_in:float, print_out = False):
     #print(df[df['beta']==1])
 
-    # Average out
-    df_avg = df.groupby(['n_stud', 'n_schools', 'alpha', 'beta']).mean(numeric_only=True).reset_index()
-        # 'numeric_only' enforces that non-numeric columns are not averaged (like labels)
-        # Last command resets indices to keep using them as colummns
-
     n_sol_methods = df["#_sol_methods"].iloc[0]
     labels = []
     legend = []
@@ -55,17 +50,40 @@ def AvgRankImpr_percent(df: pd.DataFrame, name: str, beta_in:float, print_out = 
         elif df[f'sol_{i}_label'].iloc[0] == "SD_UPON_EE":
             legend.append("LP-heur EE")
         elif df[f'sol_{i}_label'].iloc[0] == "SD_UPON_EADA":
-            legend.append("LP-heur EADA")
-
+            legend.append("LP-heur EADA")    
+    
+    # Do pairwise comparisons already before averaging out (because nans might cause problems otherwise)
     # PERCENTAGE
-    df_avg['DiffEE'] = (df_avg['avg_rank_DA'] - df_avg['avg_rank_EE'])/df_avg['avg_rank_DA'] # Difference in average rank Erdil & Ergin vs DA
-    df_avg['DiffEADA'] = (df_avg['avg_rank_DA'] - df_avg['avg_rank_EADA'])/df_avg['avg_rank_DA'] # Difference in average rank EADA vs DA 
+    df['DiffEE'] = (df['avg_rank_DA'] - df['avg_rank_EE'])/df['avg_rank_DA'] # Difference in average rank Erdil & Ergin vs DA
+    df['DiffEADA'] = (df['avg_rank_DA'] - df['avg_rank_EADA'])/df['avg_rank_DA'] # Difference in average rank EADA vs DA 
 
     counter = 1
     for s in labels:
-        df_avg[f'DiffHeur{counter}'] = (df_avg['avg_rank_DA'] - df_avg[f'{counter}_avg_rank_heur'])/df_avg['avg_rank_DA']
-        df_avg[f'DiffResult{counter}'] = (df_avg['avg_rank_DA'] - df_avg[f'{counter}_avg_rank_result'])/df_avg['avg_rank_DA']
+        # Create mask for rows where both values are not nan
+        mask = df[['avg_rank_DA', f'{counter}_avg_rank_heur']].notna().all(axis=1)
+        df[f'DiffHeur{counter}'] = np.nan  # initialize with NaN
+        
+        df.loc[mask, f'DiffHeur{counter}'] = (
+            df.loc[mask, 'avg_rank_DA'] - df.loc[mask, f'{counter}_avg_rank_heur']
+        ) / df.loc[mask, 'avg_rank_DA']
+
+
+        df[f'DiffResult{counter}'] = np.nan  # initialize with NaN
+        
+        df.loc[mask, f'DiffResult{counter}'] = (
+            df.loc[mask, 'avg_rank_DA'] - df.loc[mask, f'{counter}_avg_rank_result']
+        ) / df.loc[mask, 'avg_rank_DA']
+
         counter = counter + 1
+    
+    print(df[['n_stud', 'n_schools', 'alpha', 'beta', 'seed', 'DiffHeur1', 'DiffHeur2', "DiffHeur3", "avg_rank_DA", "avg_rank_EADA", "3_avg_rank_heur"]])
+
+    # Average out
+    df_avg = df.groupby(['n_stud', 'n_schools', 'alpha', 'beta']).mean(numeric_only=True).reset_index()
+        # 'numeric_only' enforces that non-numeric columns are not averaged (like labels)
+        # Last command resets indices to keep using them as colummns
+
+
 
     #print(df_avg)
 
@@ -73,7 +91,7 @@ def AvgRankImpr_percent(df: pd.DataFrame, name: str, beta_in:float, print_out = 
 
     max_diff = df_avg['DiffResult1'].max()
 
-    print(df_avg)
+    print(df_avg[['n_stud', 'n_schools', 'alpha', 'beta', 'DiffHeur1', 'DiffHeur2', "DiffHeur3", "3_avg_rank_heur"]])
 
     for n_stud in df_avg['n_stud'].unique():
         df_n = df_avg[df_avg['n_stud'] == n_stud]

@@ -137,7 +137,7 @@ def SimulationCG(COMPARE_SOLUTIONS: list, n_students_schools: list, alpha: list,
             MyData = DataGenEE(n, m, a, b, pref_list_length, False, seed_vector[i])
 
             # Generate the assignment from DA with Single Tie-Breaking with n_match samples
-            A = DA_STB(MyData, n_match, 'GS', False, 0, print_intermediate)
+            A = DA_STB(MyData, n_match, 'GS', False, seed_vector[i], print_intermediate)
 
             # Find Stable improvement cycles à la Erdil and Ergin (2008)
             A_SIC = SIC_all_matchings(MyData, A, print_intermediate)

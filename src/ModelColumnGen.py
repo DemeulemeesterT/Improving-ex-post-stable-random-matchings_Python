@@ -777,7 +777,6 @@ class ModelColumnGen:
             #self.Xdecomp = [] # Matchings in the found decomposition
             #self.Xdecomp_coeff = [] # Weights of these matchings
 
-            S.n_match = len(self.N_MATCH)
 
             for l in self.N_MATCH:
                 #self.Xdecomp.append(np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools)))
@@ -789,11 +788,13 @@ class ModelColumnGen:
         #S.Xdecomp = self.Xdecomp
         #S.Xdecomp_coeff = self.Xdecomp_coeff
         S.A = copy.deepcopy(self.Xassignment)
-        
+
         S.A_SIC = copy.deepcopy(self.p)
         S.A_DA_prob = copy.deepcopy(self.p_DA)
 
         S.iter = self.iterations
+        S.n_match = len(self.N_MATCH)
+
         S.bool_ColumnGen = self.bool_ColumnGen
 
         return S
