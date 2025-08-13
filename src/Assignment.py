@@ -62,6 +62,49 @@ class Assignment:
         if False:
             self.export_assignment()
     
+    
+    # Find agents who should be considered identical in this assignment
+    def find_identical_students(self, print_out = False):
+        self.identical_students = []
+        # Will contain pairs of students, with smallest index first.
+        # e.g., [[1,2], [1,3], [2,3]]
+
+        for i in range(self.MyData.n_stud):
+            for j in range(i+1, self.MyData.n_stud):
+                same_bool = True # If this parameter stays true, then we add student pair to identical set
+                
+                for p in range(len(self.MyData.pref_index[i])-1, -1, -1): # Go backwards through preferences
+                    school = self.MyData.pref_index[i][p]
+
+                    # Check whether positive probability
+                    if self.assignment[i][school] > 0.0000001:
+                        max_pref_index = p
+                        break
+                    
+                    
+                
+                # Check students have same preferences and priorities
+                for p in range(max_pref_index+1):
+                    school_index = self.MyData.pref_index[i][p]
+
+                    # Same preferences?
+                    if self.MyData.pref_index[i][p] != self.MyData.pref_index[j][p]:
+                        same_bool = False
+                        p = max_pref_index
+                    
+                    # Same priorities?
+                    
+                    elif self.MyData.rank_prior[school_index][i] != self.MyData.rank_prior[school_index][j]:
+                        same_bool = False
+                        p = max_pref_index
+                
+                # If students are identical in all these aspects, add them to the set:
+                if same_bool == True:
+                    self.identical_students.append([i,j])
+        
+        return self.identical_students
+
+    
     # Visualize the assignment in different ways
     def visualize(self):
         """
@@ -243,4 +286,43 @@ class Assignment:
                 'median_rank_improvement': median_rank_improvement}
     
 
+# Same function, but just takes a matrix with assignment probabilities as an input
+def find_identical_students_from_matrix(p_input: np.ndarray, MyData: Data, print_out = False):
+    identical_students = []
+    # Will contain pairs of students, with smallest index first.
+    # e.g., [[1,2], [1,3], [2,3]]
 
+    for i in range(MyData.n_stud):
+        for j in range(i+1, MyData.n_stud):
+            same_bool = True # If this parameter stays true, then we add student pair to identical set
+            
+            for p in range(len(MyData.pref_index[i])-1, -1, -1): # Go backwards through preferences
+                school = MyData.pref_index[i][p]
+
+                # Check whether positive probability
+                if p_input[i,school] > 0.0000001:
+                    max_pref_index = p
+                    break
+                
+                
+            
+            # Check students have same preferences and priorities
+            for p in range(max_pref_index+1):
+                school_index = MyData.pref_index[i][p]
+
+                # Same preferences?
+                if MyData.pref_index[i][p] != MyData.pref_index[j][p]:
+                    same_bool = False
+                    p = max_pref_index
+                
+                # Same priorities?
+                
+                elif MyData.rank_prior[school_index][i] != MyData.rank_prior[school_index][j]:
+                    same_bool = False
+                    p = max_pref_index
+            
+            # If students are identical in all these aspects, add them to the set:
+            if same_bool == True:
+                identical_students.append([i,j])
+    
+    return identical_students
