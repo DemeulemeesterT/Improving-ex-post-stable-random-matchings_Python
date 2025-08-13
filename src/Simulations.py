@@ -13,7 +13,7 @@ from src.EADAM import * # EADA algorithm
 
 
 
-def SimulationCG(COMPARE_SOLUTIONS: list, n_students_schools: list, alpha: list, beta: list, n_iterations_simul: int, n_match: int, time_lim: int, seed: int, n_sol_pricing: int, gap_pricing: float, MIPGap: float, bool_ColumnGen: bool, print_out = False):
+def SimulationCG(COMPARE_SOLUTIONS: list, n_students_schools: list, alpha: list, beta: list, n_iterations_simul: int, n_match: int, time_lim: int, seed: int, n_sol_pricing: int, gap_pricing: float, MIPGap: float, bool_ColumnGen: bool, bool_identical_students: bool, print_out = False):
     """
     Will run column generation framework 'n_iterations' times, for the specified parameter values
     Output: an array containing SolutionReport objects
@@ -25,6 +25,7 @@ def SimulationCG(COMPARE_SOLUTIONS: list, n_students_schools: list, alpha: list,
     - gap_pricing: optimality gap used for the solutions included in the solution pool in the pricing problem
     - bool_ColumnGen: if True: perform entire column generation for time_limit period
                       if False: only perform first iteration, and don't build pricing problem
+    - bool_identical_students (bool): if True, give identical students the same probabilities
 
     For each combination of parameter values (n_stud, n_school, alpha, beta), we start seed from same value
     This makes it easier to reproduce the results later on
@@ -156,7 +157,7 @@ def SimulationCG(COMPARE_SOLUTIONS: list, n_students_schools: list, alpha: list,
                     # Solve the formulations
                     # Note that we will use the matchings in 'A_SIC' in the first step of the master problem
                     # And we will sd-dominate the assignment 'A.assignment' (found by DA)
-                    MyModel = ModelColumnGen(MyData, A_SIC, A.assignment, print_intermediate)
+                    MyModel = ModelColumnGen(MyData, A_SIC, A.assignment, bool_identical_students, print_intermediate)
                     S = MyModel.Solve("TRAD", "GUROBI", print_log=False, time_limit= time_lim, n_sol_pricing= n_sol_pricing, gap_solutionpool_pricing=gap_pricing, MIPGap=MIPGap, bool_ColumnGen=bool_ColumnGen, print_out=print_intermediate)
                     
                     # Store solution
@@ -188,7 +189,7 @@ def SimulationCG(COMPARE_SOLUTIONS: list, n_students_schools: list, alpha: list,
                         row_data[f'{counter}_median_rank_impr_EADA'] = comp_EADA["median_rank_improvement"]   
 
                 elif s == "SD_UPON_EE":
-                    MyModel = ModelColumnGen(MyData, A_SIC, A_SIC.assignment, print_intermediate)
+                    MyModel = ModelColumnGen(MyData, A_SIC, A_SIC.assignment, bool_identical_students, print_intermediate)
                     S = MyModel.Solve("TRAD", "GUROBI", print_log=False, time_limit= time_lim, n_sol_pricing= n_sol_pricing, gap_solutionpool_pricing=gap_pricing, MIPGap=MIPGap, bool_ColumnGen=bool_ColumnGen, print_out=print_intermediate)
 
                     # Store solution
@@ -220,7 +221,7 @@ def SimulationCG(COMPARE_SOLUTIONS: list, n_students_schools: list, alpha: list,
                         row_data[f'{counter}_median_rank_impr_EADA'] = comp_EADA["median_rank_improvement"]  
 
                 elif s == "SD_UPON_EADA":
-                    MyModel = ModelColumnGen(MyData, A_SIC, A_EADAM.assignment, print_intermediate)
+                    MyModel = ModelColumnGen(MyData, A_SIC, A_EADAM.assignment, bool_identical_students, print_intermediate)
                     S = MyModel.Solve("TRAD", "GUROBI", print_log=False, time_limit= time_lim, n_sol_pricing= n_sol_pricing, gap_solutionpool_pricing=gap_pricing, MIPGap=MIPGap, bool_ColumnGen=bool_ColumnGen, print_out=print_intermediate)
             
                     # Store solution

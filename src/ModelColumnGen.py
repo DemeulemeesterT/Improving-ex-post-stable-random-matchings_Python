@@ -1,4 +1,5 @@
 from .Assignment import *
+from.Assignment import find_identical_students_from_matrix
 # Install necessary packages before running the script:
 # pip install pulp
 # pip install gurobipy
@@ -63,7 +64,7 @@ class ModelColumnGen:
     
     # Used this example as a template for Pulp: https://coin-or.github.io/pulp/CaseStudies/a_sudoku_problem.html
     
-    def __init__(self, MyData: Data, p: Assignment, p_DA: np.ndarray, print_out: bool):
+    def __init__(self, MyData: Data, p: Assignment, p_DA: np.ndarray, bool_identical_students: bool, print_out: bool):
         """
         Initialize an instance of Model.
 
@@ -71,13 +72,13 @@ class ModelColumnGen:
             MyData (type: Data): instance of class Data.
             p (type: Assignment): instance of class Assignment (possibly including SICs). This will be used for warm start solution
             p_DA (type: np.ndarray): this is the probabilistic assignment which we want to sd_dominate
+            bool_identical_students (bool): if True, give identical students the same probabilities
             print_out (type: bool): boolean that controls which output is printed.
-            nr_matchings (optional): number of matchings used in the decomposition, optional parameter that defaults to n_students * n_schools + 1
-
         """
         self.MyData = copy.deepcopy(MyData)
         self.p = copy.deepcopy(p)
         self.p_DA = copy.deepcopy(p_DA)
+        self.bool_identical_students = bool_identical_students
 
         # Create the pulp model
         # 'self.master' refers to master problem
@@ -166,6 +167,21 @@ class ModelColumnGen:
         #    name = 'GE0_' + str(m)
         #    self.constraints[name] = LpConstraintVar(name, LpConstraintGE, 0)
         
+        # Add constraints for identical students, if required
+        if self.bool_identical_students:
+            self.identical_students = find_identical_students_from_matrix(self.p_DA, self.MyData, print_out)
+            for [i,j] in self.identical_students:
+                sum = 0
+                for p in range(len(self.MyData.pref[i])):
+                    school_index = self.MyData.pref_index[i][p]
+                    sum += sum + self.p_DA[i][school_index]
+                    name = "IDENTICAL_" +  str(self.MyData.ID_stud[i]) + "_" + str(self.MyData.ID_stud[j]) + "_" + str(self.MyData.ID_school[school_index]) + 'a'
+                    self.constraints[name] = LpConstraintVar(name, LpConstraintLE, 0.05)
+                    name = "IDENTICAL_" +  str(self.MyData.ID_stud[i]) + "_" + str(self.MyData.ID_stud[j]) + "_" + str(self.MyData.ID_school[school_index]) + 'b'
+                    self.constraints[name] = LpConstraintVar(name, LpConstraintLE, 0.05)
+                    if sum >= 1 - 0.0000001:
+                        break
+
         # Add all these contraints to the model
         for c in self.constraints.values():
             self.master += c
@@ -196,7 +212,7 @@ class ModelColumnGen:
         #    for c in range(1,len(self.constraints)):
         #        self.master.addVariableToConstraints(self.w[m], {self.constraints[c], 1})
 
-        #self.master.writeLP("TestColumnFormulation.lp")
+        self.master.writeLP("TestColumnFormulation.lp")
 
         
         # Set the warm start solution as the decomposition found after SICs
@@ -232,6 +248,39 @@ class ModelColumnGen:
                     pref_school = self.MyData.pref_index[i][k]
                     #print(m,i,j,pref_school, self.M[m,i,pref_school])
                     coeff[name] += M_in[i,pref_school]
+        
+        if self.bool_identical_students:
+            for [i,j] in self.identical_students:
+                sum = 0
+                for p in range(len(self.MyData.pref[i])):
+                    school_index = self.MyData.pref_index[i][p]
+                    sum += sum + self.p_DA[i][school_index]
+                    name = "IDENTICAL_" +  str(self.MyData.ID_stud[i]) + "_" + str(self.MyData.ID_stud[j]) + "_" + str(self.MyData.ID_school[school_index]) + "a"
+
+                    # Initialize the coefficient if it doesn't exist
+                    # (needed because we use +=, and not =)
+                    if name not in coeff:
+                        coeff[name] = 0
+
+                    # Note that if a pair [i,j] belongs to identical students, then i < j.
+                    # That's why we put the minus sign for j, to enfore that they should be equal
+                    coeff[name] += M_in[i, school_index]
+                    coeff[name] -= M_in[j, school_index]
+
+                    name = "IDENTICAL_" +  str(self.MyData.ID_stud[i]) + "_" + str(self.MyData.ID_stud[j]) + "_" + str(self.MyData.ID_school[school_index]) + "b"
+
+                    # Initialize the coefficient if it doesn't exist
+                    # (needed because we use +=, and not =)
+                    if name not in coeff:
+                        coeff[name] = 0
+
+                    # Note that if a pair [i,j] belongs to identical students, then i < j.
+                    # That's why we put the minus sign for j, to enfore that they should be equal
+                    coeff[name] -= M_in[i, school_index]
+                    coeff[name] += M_in[j, school_index]
+
+                    if sum >= 1 - 0.0000001:
+                        break
 
         # Non-negativity of the variables
         # First, add a new constraint, and only then set the coefficient
@@ -242,7 +291,8 @@ class ModelColumnGen:
         #coeff[name] = 1
         
         # Then, create a dictionary for `e` that maps constraints to their coefficients
-        e_dict = {self.constraints[key]: coeff[key] for key in self.constraints if coeff[key] > 0}
+        #e_dict = {self.constraints[key]: coeff[key] for key in self.constraints if coeff[key] > 0}
+        e_dict = {self.constraints[key]: coeff[key] for key in self.constraints if coeff[key] != 0}
 
         # Add this variable to self.w
         name_w = "w_" + str(index)
@@ -378,7 +428,14 @@ class ModelColumnGen:
             #    for m in self.N_MATCH:
             #        print("w_", m, self.w[m].value())
             
-            if bool_ColumnGen == False: # You don't want to run entire column generation procedure
+            if self.master.status == -1: # If master is infeasible
+                # Create solution report
+                self.time_limit_exceeded = False
+                optimal = False
+                self.time_columnGen = current_time - starting_time
+                return self.generate_solution_report(print_out) 
+
+            elif bool_ColumnGen == False: # You don't want to run entire column generation procedure
                 # Create solution report
                 self.time_limit_exceeded = False
                 optimal = False
@@ -405,8 +462,7 @@ class ModelColumnGen:
                         name_constr = "FOSD_" +  str(self.MyData.ID_stud[i]) + "_" + str(school_name)
                             
                         duals[name_duals]=self.master.constraints[name_constr].pi
-
-                #for m in self.N_MATCH:
+                                        #for m in self.N_MATCH:
                 #    name_GE = 'GE0_' + str(m)
                 #    duals[name_GE] = self.master.constraints[name_GE].pi
                 #if print_out:
@@ -417,7 +473,6 @@ class ModelColumnGen:
                 #        print(name, duals[name])
                     
                 # Modify objective function pricing problem
-                # Careful, don't add constant terms, won't be taken into consideration!
                 pricing_obj = LpAffineExpression()
                 for i in self.STUD:
                     #print('student ', i)
@@ -431,20 +486,45 @@ class ModelColumnGen:
                             pricing_obj += self.M_pricing[i,pref_school] * duals[name]
                             #print('      school ', pref_school, duals[name])
 
+                if self.bool_identical_students:
+                    for [i,j] in self.identical_students:
+                        sum = 0
+                        for p in range(len(self.MyData.pref[i])):
+                            school_index = self.MyData.pref_index[i][p]
+                            sum += sum + self.p_DA[i][school_index]
+                            name_duals = "Nu_" + str(self.MyData.ID_stud[i]) + "_" + str(self.MyData.ID_stud[j]) + "_" + str(self.MyData.ID_school[school_index]) + 'a'
+                            name_constr = "IDENTICAL_" +  str(self.MyData.ID_stud[i]) + "_" + str(self.MyData.ID_stud[j]) + "_" + str(self.MyData.ID_school[school_index]) + 'a'
+                            duals[name_duals] = self.master.constraints[name_constr].pi
+                            pricing_obj += self.M_pricing[i, school_index] * duals[name_duals]
+                            pricing_obj -= self.M_pricing[j, school_index] * duals[name_duals]
+
+                            name_duals = "Nu_" + str(self.MyData.ID_stud[i]) + "_" + str(self.MyData.ID_stud[j]) + "_" + str(self.MyData.ID_school[school_index]) + 'b'
+                            name_constr = "IDENTICAL_" +  str(self.MyData.ID_stud[i]) + "_" + str(self.MyData.ID_stud[j]) + "_" + str(self.MyData.ID_school[school_index]) + 'b'
+                            duals[name_duals] = self.master.constraints[name_constr].pi
+                            pricing_obj -= self.M_pricing[i, school_index] * duals[name_duals]
+                            pricing_obj += self.M_pricing[j, school_index] * duals[name_duals]
+
+                            if sum >= 1 - 0.0000001:
+                                break
+
+
                 #if print_out:
                 #    print(pricing_obj)
                 #print("Duals Sum_to_one", duals["Sum_to_one"])
                 #print("Duals", duals)
 
-
-                self.pricing.setObjective(pricing_obj)
-                
-                #self.pricing.writeLP("PricingProblem.lp")
-
                 # Add the constant terms!
                 constant = 0
                 constant += duals['Sum_to_one']
-                    # This constant term will not be printed in the objective function in the .lp file, I think
+                pricing_obj += constant
+                    # This constant term will not be printed in the objective function in the .lp file
+                    # As Gurobi seems to rely on the lp file, constant term doesn't appear in outputs Gurobi
+                    # However, they will be included in the returned objective value by Pulp!
+
+
+                self.pricing.setObjective(pricing_obj)
+                
+                self.pricing.writeLP("PricingProblem.lp")
 
                 #for m in self.N_MATCH:
                 #    name_GE = 'GE0_' + str(m)
@@ -495,7 +575,7 @@ class ModelColumnGen:
                 
                 if self.pricing.status not in [0,-1]: # -1 is infeasible, 0 is unsolved (for example because interrupted earlier, or timelimit reached)
                     #print("Status code: ", self.pricing.status)
-                    obj_pricing_var = self.pricing.objective.value() + constant
+                    obj_pricing_var = self.pricing.objective.value()
                     self.obj_pricing.append(obj_pricing_var)
                     if print_out:
                         print("\t\tObjective pricing: ", obj_pricing_var)
@@ -561,9 +641,9 @@ class ModelColumnGen:
 
                             if print_out:  
                                 if t == 0:                          
-                                    print("Matching ", self.nr_matchings, "Objective value pricing:", pricing_gurobi.PoolObjVal + constant)
+                                    print("Matching ", self.nr_matchings, "Objective value pricing:", pricing_gurobi.PoolObjVal)
                                 elif t == n_sol_found - 1:
-                                    print("Matching ", self.nr_matchings, "Objective value pricing:", pricing_gurobi.PoolObjVal + constant)
+                                    print("Matching ", self.nr_matchings, "Objective value pricing:", pricing_gurobi.PoolObjVal)
 
                         if print_out:
                             print("New number of matchings:", self.nr_matchings)
