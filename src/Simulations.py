@@ -30,7 +30,8 @@ def SimulationCG(COMPARE_SOLUTIONS: list, n_students_schools: list, alpha: list,
     For each combination of parameter values (n_stud, n_school, alpha, beta), we start seed from same value
     This makes it easier to reproduce the results later on
     """
-    print_intermediate = True
+    print_intermediate = print_out
+    print_counter = True
 
     # Create directory if it doesn't exist
     os.makedirs('Simulation Results', exist_ok=True)
@@ -109,7 +110,7 @@ def SimulationCG(COMPARE_SOLUTIONS: list, n_students_schools: list, alpha: list,
 
     total_combinations = len(n_students_schools) * len(alpha) * len(beta)
 
-    for k, b, a in tqdm(itertools.product(n_students_schools, beta, alpha), total = total_combinations, desc='Data instances', unit = 'inst', disable= not print_out):
+    for k, b, a in tqdm(itertools.product(n_students_schools, beta, alpha), total = total_combinations, desc='Data instances', unit = 'inst', disable= not print_counter):
         # Generate data using data generation by Erdil & Ergin (2008)
         random.seed(seed)
 
