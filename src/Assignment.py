@@ -145,7 +145,17 @@ class Assignment:
         plt.savefig(name, format="pdf", bbox_inches="tight")
         
         # Assignment, ranked by preference
-        plt.figure()
+        # Choose desired minimum row height (inches per row)
+        row_height = 0.2  
+        n_rows = self.MyData.n_stud
+        n_cols = self.MyData.n_schools
+
+        # Adjust figure size accordingly
+        fig_height = max(4, n_rows * row_height)   # 4 is a fallback minimum
+        fig_width = max(6, n_cols * 1)           # scale width similarly if you like
+    
+
+        plt.figure(figsize=(fig_width, fig_height))
 
         # Create a custom colormap (to show negative values red)
         colors = ["red", "white", "green"]  # Red for negatives, white for 0, blue for positives

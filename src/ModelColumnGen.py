@@ -212,7 +212,7 @@ class ModelColumnGen:
         #    for c in range(1,len(self.constraints)):
         #        self.master.addVariableToConstraints(self.w[m], {self.constraints[c], 1})
 
-        self.master.writeLP("TestColumnFormulation.lp")
+        # self.master.writeLP("TestColumnFormulation.lp")
 
         
         # Set the warm start solution as the decomposition found after SICs
@@ -524,7 +524,7 @@ class ModelColumnGen:
 
                 self.pricing.setObjective(pricing_obj)
                 
-                self.pricing.writeLP("PricingProblem.lp")
+                #self.pricing.writeLP("PricingProblem.lp")
 
                 #for m in self.N_MATCH:
                 #    name_GE = 'GE0_' + str(m)
