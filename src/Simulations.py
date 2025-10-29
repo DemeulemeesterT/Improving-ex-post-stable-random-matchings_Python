@@ -98,6 +98,37 @@ def SimulationCG(COMPARE_SOLUTIONS: list, n_students_schools: list, alpha: list,
             label_name = f'{counter}_median_rank_impr_EADA'
             headers.append(label_name)
         counter = counter + 1
+
+    # Add comparisons between the number of students who improve in the base cases (e.g., how many students improve in EE compared to DA)
+    label_name = f'n_stud_impr_EE_DA'
+    headers.append(label_name)
+    label_name = f'avg_rank_impr_EE_DA'
+    headers.append(label_name)
+    label_name = f'median_rank_impr_EE_DA'
+    headers.append(label_name)
+
+    if "SD_UPON_EADA" in COMPARE_SOLUTIONS:
+        label_name = f'n_stud_impr_EADA_DA'
+        headers.append(label_name)
+        label_name = f'avg_rank_impr_EADA_DA'
+        headers.append(label_name)
+        label_name = f'median_rank_impr_EADA_DA'
+        headers.append(label_name)
+
+        label_name = f'n_stud_impr_EADA_EE'
+        headers.append(label_name)
+        label_name = f'avg_rank_impr_EADA_EE'
+        headers.append(label_name)
+        label_name = f'median_rank_impr_EADA_EE'
+        headers.append(label_name)
+
+        label_name = f'n_stud_impr_EE_EADA'
+        headers.append(label_name)
+        label_name = f'avg_rank_impr_EE_EADA'
+        headers.append(label_name)
+        label_name = f'median_rank_impr_EE_EADA'
+        headers.append(label_name)
+
     
     # Create csv in which final results will be stored
     with open(output_file, 'w', newline='') as csvfile:
@@ -254,6 +285,31 @@ def SimulationCG(COMPARE_SOLUTIONS: list, n_students_schools: list, alpha: list,
                         row_data[f'{counter}_median_rank_impr_EADA'] = comp_EADA["median_rank_improvement"]  
 
                 counter = counter + 1
+
+            # Add comparisons in improving students between EE, DA, and EADA
+            comp_EE_DA = A_SIC.compare(A.assignment)
+            row_data['n_stud_impr_EE_DA'] = comp_EE_DA["n_students_improving"]    
+            row_data['avg_rank_impr_EE_DA'] = comp_EE_DA["average_rank_increase"]  
+            row_data['median_rank_impr_EE_DA'] = comp_EE_DA["median_rank_improvement"]  
+
+            if "SD_UPON_EADA" in sol_list:
+                comp_EADA_DA = A_EADAM.compare(A.assignment)
+                comp_EADA_EE = A_EADAM.compare(A_SIC.assignment)
+                comp_EE_EADA = A_SIC.compare(A_EADAM.assignment)
+
+                row_data['n_stud_impr_EADA_DA'] = comp_EADA_DA["n_students_improving"]     
+                row_data['avg_rank_impr_EADA_DA'] = comp_EADA_DA["average_rank_increase"]  
+                row_data['median_rank_impr_EADA_DA'] = comp_EADA_DA["median_rank_improvement"]  
+
+                row_data['n_stud_impr_EADA_EE'] = comp_EADA_EE["n_students_improving"]     
+                row_data['avg_rank_impr_EADA_EE'] = comp_EADA_EE["average_rank_increase"]  
+                row_data['median_rank_impr_EADA_EE'] = comp_EADA_EE["median_rank_improvement"] 
+
+                row_data['n_stud_impr_EE_EADA'] = comp_EE_EADA["n_students_improving"]     
+                row_data['avg_rank_impr_EE_EADA'] = comp_EE_EADA["average_rank_increase"]  
+                row_data['median_rank_impr_EE_EADA'] = comp_EE_EADA["median_rank_improvement"]  
+
+
 
             # EXPORT TO CSV FILE
             with open(output_file, 'a', newline='') as csvfile:
