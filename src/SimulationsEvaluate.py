@@ -330,7 +330,7 @@ def AvgRankImpr_absolute_filter(df: pd.DataFrame, name: str, beta_in:float, prin
         plt.legend()
         plt.ylabel('Improvement in expected rank vs DA')
 
-        plt.ylim(-0.005, max_diff + 0.005)
+        plt.ylim(-0.005, max_diff + 0.05)
         #plt.gca().yaxis.set_major_formatter(PercentFormatter(1)) # Express y-axis in percentages
         name_title = 'Average improvement in rank for improving students vs DA\n (n = ' + str(n_stud) + ', beta = ' + str(beta_in) + ')'
         plt.title(name_title)
