@@ -12,7 +12,10 @@ from src.SICs import * # Adaptation of SICs algorithm to our code
 
 from matplotlib.ticker import PercentFormatter
 
-def SimulationsEvaluate(file_name: str, print_out = False):
+def SimulationsEvaluate_alpha_beta(file_name: str, print_out = False):
+    # Makes plots that show the fraction of improving students and their improvements
+    # as a function of alpha matters for different betas, and different student numbers.
+
     # Create directory if it doesn't exist
     name_folder = 'Simulation Results/Plots/' + file_name
     os.makedirs(name_folder, exist_ok=True)
@@ -32,6 +35,9 @@ def SimulationsEvaluate(file_name: str, print_out = False):
         # Improvement in rank for improving students
         AvgRankImpr_absolute_filter(df, file_name, beta, print_out)
 
+        # Fraction of improving students for EADA
+        # Fraction_improving_students_EADA(df, file_name, beta, print_out)
+
         # OLDER FUNCTIONS
 
         # AvgRankImpr_percent_filter(df, file_name, beta, print_out)
@@ -49,6 +55,53 @@ def SimulationsEvaluate(file_name: str, print_out = False):
 
         # Display by number of schools, one graph for each value of n_stud
         #AvgImprovByNSschools(df, file_name, beta_in, print_out)
+
+def SimulationsEvaluate_EADA(file_name: str, print_out = False):
+    # Makes plots that show the fraction of improving students and their improvements for EADA
+    # as a function of alpha matters for different betas, and different student numbers.
+    
+    # Create directory if it doesn't exist
+    name_folder = 'Simulation Results/Plots/' + file_name
+    os.makedirs(name_folder, exist_ok=True)
+
+    # Read in csv data file
+    csv_file_path = "Simulation Results/" + file_name + ".csv"
+    df = pd.read_csv(csv_file_path)
+
+
+    # Average overall improvement in rank
+    beta_in_vect = [0.2, 0.6]
+    for beta in beta_in_vect:
+        # Fraction of improving students for EADA
+        Fraction_improving_students_EADA(df, file_name, beta, print_out)
+
+        # Improvement in rank for improving students
+        AvgRankImpr_absolute_EADA(df, file_name, beta, print_out)
+
+
+def SimulationsEvaluate_alpha_beta(file_name: str, print_out = False):
+    # Create directory if it doesn't exist
+    name_folder = 'Simulation Results/Plots/' + file_name
+    os.makedirs(name_folder, exist_ok=True)
+
+    # Read in csv data file
+    csv_file_path = "Simulation Results/" + file_name + ".csv"
+    df = pd.read_csv(csv_file_path)
+
+
+    # Average overall improvement in rank
+    beta_in_vect = [0.2, 0.6]
+    for beta in beta_in_vect:
+        # RECENT FUNCTIONS
+        # Fraction of improving students
+        Fraction_improving_students_filter(df, file_name, beta, print_out)
+
+        # Improvement in rank for improving students
+        AvgRankImpr_absolute_filter(df, file_name, beta, print_out)
+
+        # Fraction of improving students for EADA
+        Fraction_improving_students_EADA(df, file_name, beta, print_out)
+
 
 
 def AvgRankImpr_percent(df: pd.DataFrame, name: str, beta_in:float, print_out = False):
@@ -260,7 +313,7 @@ def AvgRankImpr_absolute_filter(df: pd.DataFrame, name: str, beta_in:float, prin
     
     # Do pairwise comparisons already before averaging out (because nans might cause problems otherwise)
     # PERCENTAGE
-    df['DiffEE'] = (df['avg_rank_DA'] - df['avg_rank_EE']) # Difference in average rank Erdil & Ergin vs DA
+    df['DiffEE'] = (df['avg_rank_impr_EE_DA']) # Difference in average rank Erdil & Ergin vs DA
     #df['DiffEADA'] = (df['avg_rank_DA'] - df['avg_rank_EADA'])/df['avg_rank_DA'] # Difference in average rank EADA vs DA 
 
     counter = 1
@@ -272,7 +325,7 @@ def AvgRankImpr_absolute_filter(df: pd.DataFrame, name: str, beta_in:float, prin
         df[f'DiffHeur{counter}'] = np.nan  # initialize with NaN
         
         df.loc[mask, f'DiffHeur{counter}'] = (
-            df.loc[mask, 'avg_rank_DA'] - df.loc[mask, f'{counter}_avg_rank_heur']
+            df.loc[mask, f'{counter}_avg_rank_impr_DA']
         )
 
 
@@ -284,7 +337,7 @@ def AvgRankImpr_absolute_filter(df: pd.DataFrame, name: str, beta_in:float, prin
 
         counter = counter + 1
     
-    print(df[['n_stud', 'n_schools', 'alpha', 'beta', 'seed', 'DiffHeur1', 'DiffHeur2', "DiffHeur3", "avg_rank_DA", "avg_rank_EADA", "3_avg_rank_heur"]])
+    #print(df[['n_stud', 'n_schools', 'alpha', 'beta', 'seed', 'DiffHeur1', 'DiffHeur2', "DiffHeur3", "avg_rank_DA", "avg_rank_EADA", "3_avg_rank_heur"]])
 
     # Average out
     df_avg = df.groupby(['n_stud', 'n_schools', 'alpha', 'beta']).mean(numeric_only=True).reset_index()
@@ -306,7 +359,7 @@ def AvgRankImpr_absolute_filter(df: pd.DataFrame, name: str, beta_in:float, prin
 
     df_avg = df_avg[df_avg['beta'] == beta_in]
 
-    max_diff = df_avg['DiffResult1'].max()
+    max_diff = df_avg['DiffHeur1'].max()
 
     #print(df_avg[['n_stud', 'n_schools', 'alpha', 'beta', 'DiffHeur1', 'DiffHeur2', "DiffHeur3", "3_avg_rank_heur", "n_nans_sd_dom_EADA", "3_n_stud_impr_EADA", "3_avg_rank_impr_EADA"]])
 
@@ -340,6 +393,120 @@ def AvgRankImpr_absolute_filter(df: pd.DataFrame, name: str, beta_in:float, prin
 
 
 
+def AvgRankImpr_absolute_EADA(df: pd.DataFrame, name: str, beta_in:float, print_out = False):
+    # Function that plots the number of positions improved in ranking (including EADA)
+
+    # More control on which results are shown
+    #print(df[df['beta']==1])
+
+    n_sol_methods = df["#_sol_methods"].iloc[0]
+    labels = []
+    legend = []
+    for i in range(1, n_sol_methods + 1):
+        print('i',i, ' of ', n_sol_methods)
+        labels.append(df[f'sol_{i}_label'].iloc[0])
+        if df[f'sol_{i}_label'].iloc[0] == "SD_UPON_DA":
+            legend.append("LP-heur DA")
+        elif df[f'sol_{i}_label'].iloc[0] == "SD_UPON_EE":
+            legend.append("LP-heur EE")
+        #elif df[f'sol_{i}_label'].iloc[0] == "SD_UPON_EADA":
+            #legend.append("LP-heur EADA")    
+
+    # Find which instanced could sd-improve upon EADA
+    for i in range(1, n_sol_methods+1):
+        if df[f'sol_{i}_label'].iloc[0] == "SD_UPON_EADA":
+            # Create mask for when EADA could be sd-improved upon (i.e., where both values are not nan)
+            mask = df[['avg_rank_DA', f'{i}_avg_rank_heur']].notna().all(axis=1)
+
+    counter = 1
+    for s in labels:
+        df.loc[mask, f'DiffHeur{counter}_DA'] = (
+            df.loc[mask, f'{counter}_avg_rank_impr_DA'])
+        counter = counter + 1
+
+
+    # Also compute improvement of improving students for EADA and EE, 
+    # but only for instances where EADA could be sd-doninated upon!
+    # Do pairwise comparisons already before averaging out (because nans might cause problems otherwise)
+    # PERCENTAGE
+    df.loc[mask, 'DiffEE_DA'] = (df.loc[mask, 'avg_rank_impr_EE_DA']) 
+    df.loc[mask,'DiffEADA_DA'] = (df.loc[mask, 'avg_rank_impr_EADA_DA'])
+
+
+    # Average out
+    df_avg = df.groupby(['n_stud', 'n_schools', 'alpha', 'beta']).mean(numeric_only=True).reset_index()
+        # 'numeric_only' enforces that non-numeric columns are not averaged (like labels)
+        # Last command resets indices to keep using them as colummns
+
+    # Add column to count how many times EADA couldn't be sd-dominated for the parameters
+    counter =1 
+
+    for s in labels:
+        if s == "SD_UPON_EADA":
+            # Count number of nans (helped by ChatGPT)
+            sd_upon_EADA_count = df.groupby(['n_stud', 'n_schools', 'alpha', 'beta'])[f'{counter}_avg_rank_heur']\
+               .apply(lambda x: x.notna().sum())\
+               .reset_index(name='n_sd_upon_EADA_count')
+            
+            df_avg = df_avg.merge(sd_upon_EADA_count , on=['n_stud', 'n_schools', 'alpha', 'beta'])
+        counter = counter + 1
+
+    df_avg = df_avg[df_avg['beta'] == beta_in]
+    print("df_avg for rank improvement")
+    print(df_avg[['n_stud', 'n_schools', 'alpha', 'beta', 'DiffHeur1_DA', 'DiffHeur2_DA', "DiffHeur3_DA", "3_avg_rank_heur", "n_sd_upon_EADA_count", "DiffEADA_DA"]])
+
+    max_diff_DA = df_avg['DiffHeur1_DA'].max()
+    max_diff_EE = df_avg['DiffHeur1_EE'].max()
+    max_diff_EADA = df_avg['DiffHeur3_DA'].max()
+
+    max_diff = max(max_diff_DA, max_diff_EE, max_diff_EADA)
+
+
+    # Diff wrt DA
+    for n_stud in df_avg['n_stud'].unique():
+        df_n = df_avg[df_avg['n_stud'] == n_stud]
+        plt.figure(figsize=(6,3))
+        
+        #sd_count percentage
+        df_n['sd_upon_EADA_percentage'] = df_n['n_sd_upon_EADA_count']/10
+
+        print(df_n[['alpha', 'sd_upon_EADA_percentage']])
+
+        # Histogram with number of times we could improve upon EADA
+        plt.bar(df_n['alpha'], df_n['sd_upon_EADA_percentage'], width = 0.08, alpha = 0.4)  
+    
+
+
+        #plt.plot(df_n['alpha'], df_n['DiffEADA'], label = "EADA")
+        counter = 1
+        for s in labels:
+            plt.plot(df_n['alpha'], df_n[f'DiffHeur{counter}_DA'], label = labels[counter - 1] + ' (heuristic)', marker = ".")
+            # Check if better result column generation
+            # df_n['differs'] = (df_n[f'DiffHeur{counter}_DA'] - df_n[f'DiffResult{counter}_DA']).abs() >= 0.001
+            # if df_n['differs'].any == True:
+            #    plt.plot(df_n['alpha'], df_n[f'DiffResult{counter}'], label = labels[counter - 1] + ' (CG)')
+            counter = counter  +1
+
+        plt.plot(df_n['alpha'], df_n['DiffEE_DA'], label = "DA + SIC", marker = ".")
+
+        plt.plot(df_n['alpha'], df_n['DiffEADA_DA'], label = "EADA", marker = ".")
+
+        plt.xlabel("alpha")
+        plt.legend()
+        plt.ylabel('Improvement in expected rank vs DA')
+
+        plt.ylim(-0.005, max_diff + 0.05)
+        #plt.gca().yaxis.set_major_formatter(PercentFormatter(1)) # Express y-axis in percentages
+        name_title = 'Average improvement in rank for improving students vs DA\n (n = ' + str(n_stud) + ', beta = ' + str(beta_in) + ')'
+        plt.title(name_title)
+
+        name_plot = "Simulation Results/Plots/" + name + "/AvgRankImpr_absolute_(withEADA)_beta_" + str(n_stud) + '_' + str(beta_in) + '.pdf'
+        plt.savefig(name_plot, format="pdf", bbox_inches="tight")
+
+
+
+
+
 
 def Fraction_improving_students_filter(df: pd.DataFrame, name: str, beta_in:float, print_out = False):
     # Fraction of improving students visualised (no EADAM)
@@ -361,7 +528,7 @@ def Fraction_improving_students_filter(df: pd.DataFrame, name: str, beta_in:floa
     # Do pairwise comparisons already before averaging out (because nans might cause problems otherwise)
     # PERCENTAGE
     print(df['n_stud_impr_EE_DA'])
-    df['DiffEE_DA'] = (df['n_stud_impr_EE_DA'])/df['n_stud'] # Difference in average rank Erdil & Ergin vs DA
+    df['DiffEE_DA'] = (df['n_stud_impr_EE_DA'])/df['n_stud'] # Fraction of students improving in EE vs DA
     #df['DiffEADA'] = (df['avg_rank_DA'] - df['avg_rank_EADA'])/df['avg_rank_DA'] # Difference in average rank EADA vs DA 
 
     counter = 1
@@ -386,16 +553,6 @@ def Fraction_improving_students_filter(df: pd.DataFrame, name: str, beta_in:floa
         # 'numeric_only' enforces that non-numeric columns are not averaged (like labels)
         # Last command resets indices to keep using them as colummns
 
-    # Add column to count how many times EADA couldn't be sd-dominated for the parameters
-    counter =1 
-    for s in labels:
-        #if s == "SD_UPON_EADA":
-        #    nan_counts = df.groupby(['n_stud', 'n_schools', 'alpha', 'beta'])[f'{counter}_avg_rank_heur']\
-        #       .apply(lambda x: x.isna().sum())\
-        #       .reset_index(name='n_nans_sd_dom_EADA')
-            
-        #    df_avg = df_avg.merge(nan_counts, on=['n_stud', 'n_schools', 'alpha', 'beta'])
-        counter = counter + 1
 
     #print(df_avg)
 
@@ -464,6 +621,130 @@ def Fraction_improving_students_filter(df: pd.DataFrame, name: str, beta_in:floa
         plt.title(name_title)
 
         name_plot = "Simulation Results/Plots/" + name + "/FracImprStud_EE_beta_" + str(n_stud) + '_' + str(beta_in) + '.pdf'
+        plt.savefig(name_plot, format="pdf", bbox_inches="tight")
+
+
+def Fraction_improving_students_EADA(df: pd.DataFrame, name: str, beta_in:float, print_out = False):
+    # Fraction of improving students visualised for EADA
+    # Only show the instances for which we can sd-improve upon EADA
+    # Plot improvement lines upon histogram that shows the percentage of instances in which we could
+        # improve upon EADA
+    # Do this once upon DA, and once upon EE
+
+    n_sol_methods = df["#_sol_methods"].iloc[0]
+    labels = []
+    legend = []
+    for i in range(1, n_sol_methods+1):
+        print('i',i, ' of ', n_sol_methods)
+        labels.append(df[f'sol_{i}_label'].iloc[0])
+        if df[f'sol_{i}_label'].iloc[0] == "SD_UPON_DA":
+            legend.append("LP-heur DA")
+        elif df[f'sol_{i}_label'].iloc[0] == "SD_UPON_EE":
+            legend.append("LP-heur EE")
+        elif df[f'sol_{i}_label'].iloc[0] == "SD_UPON_EADA":
+            legend.append("LP-heur EADA")    
+    
+    
+    # Find which instanced could sd-improve upon EADA
+    for i in range(1, n_sol_methods+1):
+        if df[f'sol_{i}_label'].iloc[0] == "SD_UPON_EADA":
+            # Create mask for when EADA could be sd-improved upon (i.e., where both values are not nan)
+            mask = df[['avg_rank_DA', f'{i}_avg_rank_heur']].notna().all(axis=1)
+
+    counter = 1
+    for s in labels:
+        df.loc[mask, f'DiffHeur{counter}_DA'] = (
+            df.loc[mask, f'{counter}_n_stud_impr_DA']
+        ) / df.loc[mask, 'n_stud']
+
+        df.loc[mask, f'DiffHeur{counter}_EE'] = (
+            df.loc[mask, f'{counter}_n_stud_impr_EE']
+        ) / df.loc[mask, 'n_stud']
+        counter = counter + 1
+
+    # Also compute fraction of improving students for EADA and EE, 
+    # but only for instances where EADA could be sd-doninated upon!
+    # Do pairwise comparisons already before averaging out (because nans might cause problems otherwise)
+    # PERCENTAGE
+    df.loc[mask, 'DiffEE_DA'] = (df.loc[mask,'n_stud_impr_EE_DA'])/df.loc[mask,'n_stud'] # Fraction of students improving in EE vs DA
+    df.loc[mask,'DiffEADA_DA'] = (df.loc[mask,'n_stud_impr_EADA_DA'])/df.loc[mask,'n_stud'] # Fraction of students improving in EADA vs DA
+
+    
+    print(df[['n_stud', 'n_schools', 'alpha', 'beta', 'seed', 'DiffHeur1_DA', 'DiffHeur2_DA', "DiffHeur3_DA", "DiffEE_DA"]])
+
+    # Average out
+    df_avg = df.groupby(['n_stud', 'n_schools', 'alpha', 'beta']).mean(numeric_only=True).reset_index()
+        # 'numeric_only' enforces that non-numeric columns are not averaged (like labels)
+        # Last command resets indices to keep using them as colummns
+
+    # Add column to count how many times EADA couldn't be sd-dominated for the parameters
+    counter =1 
+    for s in labels:
+        if s == "SD_UPON_EADA":
+            # Count number of nans (helped by ChatGPT)
+            sd_upon_EADA_count = df.groupby(['n_stud', 'n_schools', 'alpha', 'beta'])[f'{counter}_avg_rank_heur']\
+               .apply(lambda x: x.notna().sum())\
+               .reset_index(name='n_sd_upon_EADA_count')
+            
+            df_avg = df_avg.merge(sd_upon_EADA_count , on=['n_stud', 'n_schools', 'alpha', 'beta'])
+        counter = counter + 1
+
+    print(df_avg)
+
+
+    df_avg = df_avg[df_avg['beta'] == beta_in]
+
+    max_diff_DA = df_avg['DiffHeur1_DA'].max()
+    max_diff_EE = df_avg['DiffHeur1_EE'].max()
+    max_diff_EADA = df_avg['DiffHeur3_DA'].max()
+
+
+    print("max_diff_DA", max_diff_DA)
+    print("max_diff_EE", max_diff_EE)
+    print("max_diff_EADA", max_diff_EADA)
+
+    #print(df_avg[['n_stud', 'n_schools', 'alpha', 'beta', 'DiffHeur1', 'DiffHeur2', "DiffHeur3", "3_avg_rank_heur", "n_nans_sd_dom_EADA", "3_n_stud_impr_EADA", "3_avg_rank_impr_EADA"]])
+
+
+    # Diff wrt DA
+    for n_stud in df_avg['n_stud'].unique():
+        df_n = df_avg[df_avg['n_stud'] == n_stud]
+        plt.figure(figsize=(6,3))
+        
+        #sd_count percentage
+        df_n['sd_upon_EADA_percentage'] = df_n['n_sd_upon_EADA_count']/10
+
+        print(df_n[['alpha', 'sd_upon_EADA_percentage']])
+
+        # Histogram with number of times we could improve upon EADA
+        plt.bar(df_n['alpha'], df_n['sd_upon_EADA_percentage'], width = 0.08, alpha = 0.4)  
+    
+
+
+        #plt.plot(df_n['alpha'], df_n['DiffEADA'], label = "EADA")
+        counter = 1
+        for s in labels:
+            plt.plot(df_n['alpha'], df_n[f'DiffHeur{counter}_DA'], label = labels[counter - 1] + ' (heuristic)', marker = ".")
+            # Check if better result column generation
+            # df_n['differs'] = (df_n[f'DiffHeur{counter}_DA'] - df_n[f'DiffResult{counter}_DA']).abs() >= 0.001
+            # if df_n['differs'].any == True:
+            #    plt.plot(df_n['alpha'], df_n[f'DiffResult{counter}'], label = labels[counter - 1] + ' (CG)')
+            counter = counter  +1
+
+        plt.plot(df_n['alpha'], df_n['DiffEE_DA'], label = "DA + SIC", marker = ".")
+
+        plt.plot(df_n['alpha'], df_n['DiffEADA_DA'], label = "EADA", marker = ".")
+
+        plt.xlabel("alpha")
+        plt.legend()
+        plt.ylabel('Fraction of improving students upon DA')
+
+        plt.ylim(-0.005, 1 + 0.08)
+        plt.gca().yaxis.set_major_formatter(PercentFormatter(1)) # Express y-axis in percentages
+        name_title = 'Fraction of improving students upon DA\n (n = ' + str(n_stud) + ', beta = ' + str(beta_in) + ')'
+        plt.title(name_title)
+
+        name_plot = "Simulation Results/Plots/" + name + "/FracImprStud_DA_(withEADA)_beta_" + str(n_stud) + '_' + str(beta_in) + '.pdf'
         plt.savefig(name_plot, format="pdf", bbox_inches="tight")
 
 
