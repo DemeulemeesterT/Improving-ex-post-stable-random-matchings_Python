@@ -313,7 +313,7 @@ class ModelColumnGen:
 
 
         
-    def Solve(self, stab_constr: str, solver: str, print_log: str, time_limit: int, n_sol_pricing: int, gap_solutionpool_pricing: float, MIPGap: float, bool_ColumnGen: bool, print_out: bool):
+    def Solve(self, stab_constr: str, solver: str, print_log: str, time_limit: int, n_sol_pricing: int, gap_solutionpool_pricing: float, MIPGap: float, bool_ColumnGen: bool, bool_supercolumn: bool, print_out: bool):
         """
         Solves the formulation using column generation.
         Returns an instance from the Assignment class.
@@ -334,6 +334,9 @@ class ModelColumnGen:
             print_out (bool): boolean that controls which output is printed.
             bool_ColumnGen (bool): if True: perform entire column generation for time_limit period
                             if False: only perform first iteration, and don't build pricing problem
+            bool_supercolumn (bool): if True: if the model is infeasible in the first step, add an artificial matching
+                M' such that M'[i][j] = 1 for all i,j. Give this matching a very high weight in the objective function,
+                and remove it as soon as a feasible solution can be found where the weight of this 'matching' is zero.
         """
         self.bool_ColumnGen = bool_ColumnGen
         
@@ -391,9 +394,16 @@ class ModelColumnGen:
 
         starting_time = time.monotonic()
 
+        supercolumn_in_model = False
+        index_super_column = -1 # Updated in loop below if supercolumn added
+        remove_supercolumn = False # Used to decide when to remove
+
+        # Keep track of whether the supercolumn is in the master problem
+        # If it is, check whether its weight in the found solution is zero, in which case the variable will be removed
+
         while (optimal == False):
             if print_out:
-                print('ITERATION:', self.iterations)            
+                print('\nITERATION:', self.iterations)            
             if print_out:
                 if print_out:
                     print("\n ****** MASTER ****** \n")
@@ -421,8 +431,6 @@ class ModelColumnGen:
             if self.iterations == 1:
                 self.avg_rank_first_iter = self.obj_master[-1]
 
-            
-
             # Check if the time limit is exceeded
             current_time = time.monotonic()
 
@@ -430,14 +438,9 @@ class ModelColumnGen:
             #    for m in self.N_MATCH:
             #        print("w_", m, self.w[m].value())
             
-            if self.master.status == -1: # If master is infeasible
-                # Create solution report
-                self.time_limit_exceeded = False
-                optimal = False
-                self.time_columnGen = current_time - starting_time
-                return self.generate_solution_report(print_out) 
+        
 
-            elif bool_ColumnGen == False: # You don't want to run entire column generation procedure
+            if bool_ColumnGen == False: # You don't want to run entire column generation procedure
                 # Create solution report
                 self.time_limit_exceeded = False
                 optimal = False
@@ -445,6 +448,60 @@ class ModelColumnGen:
                 return self.generate_solution_report(print_out) 
 
             elif bool_ColumnGen == True: # Only if you want to continue with the column generation procedure.
+                # If infeasible, add "supercolumn"
+                # This is a "matching" M such that M[i][j] = 1 for all i,j
+                # This will help to find a solution that sd-dominates the given random matching
+                # To avoid selecting it, make objective value of it very large.
+                # For instance, if we do not want to select is with probability 0.0001, 
+                    # give it a weight of n^2*10000, for example
+                if self.iterations == 1:
+                    if self.master.status == -1: # If master is infeasible
+                        if bool_supercolumn == True:
+                            if print_out:
+                                print("\n Supercolumn added to model to enforce feasibility.\n")
+                            M_super = np.ones(shape=(self.MyData.n_stud, self.MyData.n_schools))
+                            index_super_column = len(self.w)
+                            self.add_matching(M_super, len(self.w), False)
+                                
+                            self.M_list.append(M_super)
+                            self.nr_matchings += 1
+
+                            supercolumn_in_model = True
+
+                            # Modify objective coefficient:
+                            obj_coeff = self.MyData.n_stud * self.MyData.n_stud * 10000
+                            self.master.setObjective(self.master.objective+obj_coeff*self.w[index_super_column])
+
+                            #self.master.writeLP("TestColumnFormulation.lp")
+
+                            # Now solve the model again
+                            if print_log == False:
+                                self.master.solve(solver_function(msg = False, logPath = "Logfile_master.log", warmStart = True))
+                            else:
+                                self.master.solve(solver_function(msg = True, warmStart = True))
+                            #self.model.solve(GUROBI_CMD(keepFiles=True, msg=True, options=[("IISFind", 1)]))
+                            
+                            # Get objective value master problem
+                            self.obj_master.append(self.master.objective.value())
+                            if print_out:
+                                print("Objective master: ", self.obj_master[-1])
+
+                            # Get average rank of first iteration
+                            if self.iterations == 1:
+                                self.avg_rank_first_iter = self.obj_master[-1]
+
+
+                # Check whether supercolumn has weight zero in solution, and remove it in that case
+                # You can only do this after pricing problem, because otherwise the model has been changed
+                    # and dual variables cannot be extracted.
+
+                if self.master.status == -1: # If master is infeasible
+                    # Create solution report
+                    self.time_limit_exceeded = False
+                    optimal = False
+                    self.time_columnGen = current_time - starting_time
+                    return self.generate_solution_report(print_out) 
+                
                 if current_time - starting_time > time_limit:
                     optimal = True
                     self.time_limit_exceeded = True
@@ -525,8 +582,22 @@ class ModelColumnGen:
 
 
                 self.pricing.setObjective(pricing_obj)
+
+                # Intermezzo: now that we have the dual variables, we can check whether the supercolumn can be removed
+                    # Remove if it had a weight of zero in master problem
+                #print("\n\n Supercolumn check! In model?", supercolumn_in_model)
+                if supercolumn_in_model == True:
+                    #print("index supercolumn: ", index_super_column)
+                    #print("value supercolumn: ", self.w[index_super_column].varValue)
+                    if self.w[index_super_column].varValue < 0.0001:
+                        if print_out:
+                            print("\n The supercolumn will be removed from the master problem.\n")
+                            # This can only be done when matchings are added to the model
+                            # If we would do it now, then we cannot extract weights of matchings if solution is optimal
+                        remove_supercolumn = True
+                        
                 
-                #self.pricing.writeLP("PricingProblem.lp")
+                self.pricing.writeLP("PricingProblem.lp")
 
                 #for m in self.N_MATCH:
                 #    name_GE = 'GE0_' + str(m)
@@ -580,6 +651,8 @@ class ModelColumnGen:
                     obj_pricing_var = self.pricing.objective.value()
                     self.obj_pricing.append(obj_pricing_var)
                     if print_out:
+                        print("self.obj_pricing_var: ", obj_pricing_var)
+                        print("Constant term:", constant)
                         print("\t\tObjective pricing: ", obj_pricing_var)
 
                 #if print_out:
@@ -596,8 +669,20 @@ class ModelColumnGen:
                     self.time_columnGen = self.time_limit
                     return self.generate_solution_report(print_out) 
                 
-                elif self.pricing.status != -1:            
+                elif self.pricing.status != -1:   
                     if obj_pricing_var > 0:
+                        # Remove supercolumn if needed:
+                        if supercolumn_in_model == True:
+                            if remove_supercolumn == True:
+                                self.w[index_super_column].upBound = 0
+                            
+                                # Also remove supercolumn from the list with matchings
+                                del self.M_list[index_super_column]
+                                #self.master.writeLP("TestColumnFormulation2.lp")
+
+                                supercolumn_in_model = False
+
+
                         # The solution of the master problem is not optimal over all weakly stable matchings
                         
                         # Add non-negativity constraint to the master for this new matching
@@ -642,10 +727,15 @@ class ModelColumnGen:
                     
 
                             if print_out:  
-                                if t == 0:                          
-                                    print("Matching ", self.nr_matchings, "Objective value pricing:", pricing_gurobi.PoolObjVal)
+                                if t == 0:
+                                    # Weirdly, the poolobjval does not take into account the constant value, 
+                                    # while computing the objective value using pricing.objective.value() does?        
+                                    #print("Constant value:", constant)
+                                    #print("Pricing objective:", pricing_gurobi.PoolObjVal)
+                                    #print("Computed objective value matching ", t, ": ", pricing_gurobi.PoolObjVal + constant)               
+                                    print("Matching ", self.nr_matchings, "Objective value pricing:", pricing_gurobi.PoolObjVal + constant)
                                 elif t == n_sol_found - 1:
-                                    print("Matching ", self.nr_matchings, "Objective value pricing:", pricing_gurobi.PoolObjVal)
+                                    print("Matching ", self.nr_matchings, "Objective value pricing:", pricing_gurobi.PoolObjVal + constant)
 
                         if print_out:
                             print("New number of matchings:", self.nr_matchings)
@@ -672,6 +762,9 @@ class ModelColumnGen:
                     current_time = time.monotonic()
                     self.time_columnGen = current_time - starting_time
                     return self.generate_solution_report(print_out)     
+            
+            
+
 
 
             
@@ -856,19 +949,19 @@ class ModelColumnGen:
             self.Xassignment.assignment = np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools))
 
             # Store decomposition
-            #self.Xdecomp = [] # Matchings in the found decomposition
-            #self.Xdecomp_coeff = [] # Weights of these matchings
+            self.Xdecomp = [] # Matchings in the found decomposition
+            self.Xdecomp_coeff = [] # Weights of these matchings
 
 
             for l in self.N_MATCH:
-                #self.Xdecomp.append(np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools)))
-                #self.Xdecomp_coeff.append(self.w[l].varValue)
+                self.Xdecomp.append(np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools)))
+                self.Xdecomp_coeff.append(self.w[l].varValue)
                 for (i,j) in self.PAIRS:
-                #    self.Xdecomp[-1][i,j] = self.M_list[l][i][j]
+                    self.Xdecomp[-1][i,j] = self.M_list[l][i][j]
                     self.Xassignment.assignment[i,j] += self.w[l].varValue * self.M_list[l][i][j]
             
-        #S.Xdecomp = self.Xdecomp
-        #S.Xdecomp_coeff = self.Xdecomp_coeff
+        S.Xdecomp = self.Xdecomp
+        S.Xdecomp_coeff = self.Xdecomp_coeff
         S.A = copy.deepcopy(self.Xassignment)
 
         S.A_SIC = copy.deepcopy(self.p)

@@ -13,7 +13,7 @@ from src.EADAM import * # EADA algorithm
 
 
 
-def SimulationCG(COMPARE_SOLUTIONS: list, n_students_schools: list, alpha: list, beta: list, n_iterations_simul: int, n_match: int, time_lim: int, seed: int, n_sol_pricing: int, gap_pricing: float, MIPGap: float, bool_ColumnGen: bool, bool_identical_students: bool, print_out = False):
+def SimulationCG(COMPARE_SOLUTIONS: list, n_students_schools: list, alpha: list, beta: list, n_iterations_simul: int, n_match: int, time_lim: int, seed: int, n_sol_pricing: int, gap_pricing: float, MIPGap: float, bool_ColumnGen: bool, bool_supercolumn: bool, bool_identical_students: bool, print_out = False):
     """
     Will run column generation framework 'n_iterations' times, for the specified parameter values
     Output: an array containing SolutionReport objects
@@ -25,6 +25,7 @@ def SimulationCG(COMPARE_SOLUTIONS: list, n_students_schools: list, alpha: list,
     - gap_pricing: optimality gap used for the solutions included in the solution pool in the pricing problem
     - bool_ColumnGen: if True: perform entire column generation for time_limit period
                       if False: only perform first iteration, and don't build pricing problem
+    - bool_supercolumn: boolean to determine whether you want to add an artificial column to the model when the model is infeasible?
     - bool_identical_students (bool): if True, give identical students the same probabilities
 
     For each combination of parameter values (n_stud, n_school, alpha, beta), we start seed from same value
