@@ -620,10 +620,12 @@ class ModelColumnGen:
                 if print_log == True:  
                     #self.pricing.solve(solver_function())
                     
+                    #print("\n\n Careful, pricing stops at first postive value!\n\n")
                     #self.pricing.solve(solver_function(timeLimit = new_time_limit, BestObjStop = -constant +0.0001))
                     self.pricing.solve(solver_function(timeLimit = new_time_limit,
                     PoolGap = gap_solutionpool_pricing,
                     PoolSolutions = n_sol_pricing,
+                    #BestObjStop = -constant +0.0001,
                     PoolSearchMode = 2, #Find diverse solutions
                     MIPGap = MIPGap)) 
 
@@ -635,11 +637,13 @@ class ModelColumnGen:
                     with open(os.devnull, 'w') as devnull:
                         with redirect_stdout(devnull):
                             #self.pricing.solve(solver_function(msg=False, timeLimit=new_time_limit, logPath = 'Logfile_pricing.log',BestObjStop = -constant + 0.0001))
+                            #print("\n\n Careful, pricing stops at first postive value!\n\n")
                             self.pricing.solve(solver_function(msg=False, logPath = 'Logfile_pricing.log',timeLimit = new_time_limit,
-                    PoolGap = gap_solutionpool_pricing,
-                    PoolSolutions = n_sol_pricing,
-                    PoolSearchMode = 2,
-                    MIPGap = MIPGap))
+                                #BestObjStop = -constant +0.0001,
+                                PoolGap = gap_solutionpool_pricing,
+                                PoolSolutions = n_sol_pricing,
+                                PoolSearchMode = 2,
+                                MIPGap = MIPGap))
                     #self.pricing.solve(solver_function(msg=False, logPath = 'Logfile_pricing.log'))
                 
 
@@ -675,9 +679,6 @@ class ModelColumnGen:
                         if supercolumn_in_model == True:
                             if remove_supercolumn == True:
                                 self.w[index_super_column].upBound = 0
-                            
-                                # Also remove supercolumn from the list with matchings
-                                del self.M_list[index_super_column]
                                 #self.master.writeLP("TestColumnFormulation2.lp")
 
                                 supercolumn_in_model = False
