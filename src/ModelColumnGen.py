@@ -421,6 +421,8 @@ class ModelColumnGen:
             if self.iterations == 1:
                 self.avg_rank_first_iter = self.obj_master[-1]
 
+            
+
             # Check if the time limit is exceeded
             current_time = time.monotonic()
 
