@@ -366,7 +366,7 @@ class ModelColumnGen:
            raise ValueError(f"Invalid value: '{solver}'. Allowed values are: {solver_list}")
 
         # Valid values for 'stab_constr'
-        stab_list = ["TRAD"]
+        stab_list = ["TRAD", "CUTOFF"]
         if stab_constr not in stab_list:
            raise ValueError(f"Invalid value: '{stab_constr}'. Allowed values are: {stab_list}")        
 
@@ -378,7 +378,7 @@ class ModelColumnGen:
         if bool_ColumnGen == True:
             self.build_pricing(stab_constr, print_out)
 
-       
+        self.pricing.writeLP("PricingProblem.lp")
         
         #### RUN COLUMN GENERATION PROCEDURE ####
         optimal = False
@@ -833,19 +833,52 @@ class ModelColumnGen:
 
             for (i,j) in self.PAIRS:
                 # Find priority group to which i belongs at school j
-                s_i_j = s_max[j]
-                for k in range(s_max[j]):
-                    if isinstance(self.MyData.prior[j][k], tuple): # When more than a single student in this element
-                        if i in self.MyData.prior_index[j][k]:
-                            s_i_j = k
+                #s_i_j = s_max[j]
+                #for k in range(s_max[j]):
+                #    if isinstance(self.MyData.prior[j][k], tuple): # When more than a single student in this element
+                #        if i in self.MyData.prior_index[j][k]:
+                #            s_i_j = k
 
-                self.pricing += ((1 - self.M_pricing[i][j]) * s_max[j] + s_i_j <= self.t[j])
+                # Rank of student i in priority of school j
+                r_i_j = self.MyData.rank_prior[j][i]
+                self.pricing += self.t[j] >= self.M_pricing[(i,j)] * r_i_j, f"CUTOFF1_{i}_{j}"
 
-                #######################################################
-                #################### NOT FINISHED YET #################
-                #### How can some students in a priority be assigned ##
-                ## And some others not, using cutoff scores? ##########
-                #######################################################
+                lin = LpAffineExpression()
+                current_school = self.MyData.pref_index[i][j]
+
+                # Go through all schools that are weakly more preferred than current school by i
+                for l in self.SCHOOLS:
+                    if self.MyData.rank_pref[i][l] <= self.MyData.rank_pref[i][j]:
+                        lin -= (self.M_pricing[(i,self.MyData.pref_index[i][l])] * (s_max[j]+1))
+                        
+                    
+                # Add variable for cutoff score
+                lin += self.t[j]
+
+                # And add - score of student i at school j
+                lin -= r_i_j
+
+                # Add constraint to pricing model
+                self.pricing += lin <= 0
+
+            ######################################
+            # Ensure non-wastefulness in pricing #
+            ######################################
+            
+            # Add new binary variable for each school that is zero if capacity is not fully filled
+            self.f = LpVariable.dicts("f", [j for j in self.SCHOOLS], cat="Binary")
+            for j in self.SCHOOLS:
+                lin = LpAffineExpression()
+                for (i,j) in self.PAIRS:
+                    lin += self.M_pricing[(i,j)]
+                
+                lin -= self.f[j] * self.MyData.cap[j]
+
+                self.pricing += lin >= 0, f"CUTOFF3_{j}"
+
+            for j in self.SCHOOLS:
+                lin = LpAffineExpression()
+                self.pricing += self.t[j] >= (1 - self.f[j]) * (s_max[j]+1), f"CUTOFF4_{j}"
 
         
         # Each student at most assigned to one school
