@@ -380,7 +380,7 @@ class ModelColumnGen:
         if bool_ColumnGen == True:
             self.build_pricing(stab_constr, print_out)
 
-        self.pricing.writeLP("PricingProblem.lp")
+            self.pricing.writeLP("PricingProblem.lp")
 
 
         
@@ -540,21 +540,26 @@ class ModelColumnGen:
                 # Modify objective function pricing problem
                 pricing_obj = LpAffineExpression()
                 for i in self.STUD:
-                    print('student ', i)
+                    #print('student ', i)
                     for j in range(len(self.MyData.pref[i])): 
                         school_name = self.MyData.pref_index[i][j]
-                        #pricing_obj -= self.M_pricing[i,school_name] * (self.MyData.rank_pref[i,school_name]+ 1) / self.MyData.n_stud # + 1 because the indexing starts from zero
-                        print('  school ', school_name, -(self.MyData.rank_pref[i,school_name]+ 1) / self.MyData.n_stud)
+                        # pricing_obj -= self.M_pricing[i,school_name] * (self.MyData.rank_pref[i,school_name]+ 1) / self.MyData.n_stud # + 1 because the indexing starts from zero
+                        #print('  school ', school_name, -(self.MyData.rank_pref[i,school_name]+ 1) / self.MyData.n_stud)
+                        new_coefficient = - (self.MyData.rank_pref[i,school_name]+ 1) / self.MyData.n_stud
                         for k in range(j+1):
                             pref_school = self.MyData.pref_index[i][k]
                             name = "Mu_" +  str(self.MyData.ID_stud[i]) + "_" + str(pref_school)
-                            new_coefficient = duals[name] - (self.MyData.rank_pref[i,school_name]+ 1) / self.MyData.n_stud
-                            #pricing_obj += self.M_pricing[i,pref_school] * duals[name]
-                            pricing_obj += self.M_pricing[i,pref_school] * new_coefficient
-                            print('      school ', pref_school, duals[name])
-                            if print_out:
-                                if duals[name] != 0:
-                                    print("Dual ", i, j, ":", duals[name] )
+                            new_coefficient = new_coefficient + duals[name] 
+                            #pricing_obj += self.M_pricing[i,pref_school] * duals[name}
+                            #print('      school ', pref_school, duals[name])
+                        pricing_obj += self.M_pricing[i,pref_school] * new_coefficient 
+
+                        #if print_out:
+                            #if new_coefficient > 0.00001:
+                                #print("  New coefficient ", i, pref_school, new_coefficient)
+                                # Modify objective function pricing problem
+                
+              
 
                 if self.bool_identical_students:
                     for [i,j] in self.identical_students:
@@ -715,7 +720,7 @@ class ModelColumnGen:
                         counter_M_improved = np.zeros(n_sol_found)
 
                         # Go through all matchings
-                        for t in range(n_sol_found):
+                        for t in tqdm(range(n_sol_found), desc='Found matchings added to master', unit='match', disable= not print_out):
 
                             pricing_gurobi.setParam('SolutionNumber', t)
 
@@ -798,155 +803,9 @@ class ModelColumnGen:
                         #    print("Process terminated after ", self.iterations, " iterations.")
                         self.iterations = self.iterations + 1                
 
-
-                        # Also try another way to find interesting matchings
-                        if print_out:
-                            print("\n\n***************************\nFind matchings negative reduced cost with low rank\n***************************\n\n")
-                            print(pricing_obj)
-                        
-                        # Add constraint to enforce that reduced cost is negative (or objective pricing positive)
-                        self.pricing += (pricing_obj >= 0, "PricingObjConstr") 
-
-                        self.pricing.sense = pl.LpMinimize
-                        # Change objective function to minimize rank
-                        new_obj = LpAffineExpression()
-                        for (i,j) in self.PAIRS:
-                            new_obj += self.M_pricing[i,j]*(self.MyData.rank_pref[i,j]+ 1) / self.MyData.n_stud # + 1 because the indexing starts from zero
-
-                        
-                        
-                        # Add this variable to the model with the correct objective coefficient
-                        self.pricing.objective = LpAffineExpression() 
-                        self.pricing.setObjective(new_obj)
-                        self.pricing.writeLP("PricingProblemMinRank.lp")
-
-                        # Find "n_solutions" best solutions of this formulation
-
-                        ###########
-                        # From here same code as for usual pricing problem
-                        ###########
-
-                        # Update time limit:
-                        current_time = time.monotonic()
-                        new_time_limit = max(time_limit - (current_time - starting_time), 0)
-                        if print_out:
-                            print('New time limit', new_time_limit)
-
-                        if print_log == True:  
-                            #self.pricing.solve(solver_function())
-                            
-                            #print("\n\n Careful, pricing stops at first postive value!\n\n")
-                            #self.pricing.solve(solver_function(timeLimit = new_time_limit, BestObjStop = -constant +0.0001))
-                            self.pricing.solve(solver_function(timeLimit = new_time_limit,
-                            PoolGap = gap_solutionpool_pricing,
-                            PoolSolutions = n_sol_pricing,
-                            #BestObjStop = -constant +0.0001,
-                            PoolSearchMode = 2, #Find diverse solutions
-                            MIPGap = MIPGap)) 
-
-                            # Will stop the solver once a matching with objective function at least zero has been found
-                            #self.pricing.solve(solver_function())
-
-                        else:
-                            #self.pricing.solve(solver_function(msg=False, logPath = 'Logfile_pricing.log'))
-                            with open(os.devnull, 'w') as devnull:
-                                with redirect_stdout(devnull):
-                                    #self.pricing.solve(solver_function(msg=False, timeLimit=new_time_limit, logPath = 'Logfile_pricing.log',BestObjStop = -constant + 0.0001))
-                                    #print("\n\n Careful, pricing stops at first postive value!\n\n")
-                                    self.pricing.solve(solver_function(msg=False, logPath = 'Logfile_pricing.log',timeLimit = new_time_limit,
-                                        #BestObjStop = -constant +0.0001,
-                                        PoolGap = gap_solutionpool_pricing,
-                                        PoolSolutions = n_sol_pricing,
-                                        PoolSearchMode = 2,
-                                        MIPGap = MIPGap))
-                            #self.pricing.solve(solver_function(msg=False, logPath = 'Logfile_pricing.log'))
-                        
-
-                        # If not infeasible:
-
-                        
-                        if self.pricing.status not in [0,-1]: # -1 is infeasible, 0 is unsolved (for example because interrupted earlier, or timelimit reached)
-                            #print("Status code: ", self.pricing.status)
-                            obj_pricing_var = self.pricing.objective.value()
-                            #self.obj_pricing.append(obj_pricing_var)
-                            if print_out:
-                                print("\t\tObjective pricing 2 (rank): ", obj_pricing_var)
-
-                        #if print_out:
-                        if False:
-                            for (i,j) in self.PAIRS:
-                                print("M[",i,j,'] =', self.M_pricing[i,j].value())
-                        
-                        #### EVALUATE SOLUTION ####
-                        if print_out:
-                            print('Pricing status', self.pricing.status)
-                        if self.pricing.status == 0: # Time limit exceeded
-                            self.time_limit_exceeded = True
-                            optimal = False
-                            self.time_columnGen = self.time_limit
-                            return self.generate_solution_report(print_out) 
-                        
-                        elif self.pricing.status != -1:   
-                            if obj_pricing_var > 0:
-                                # The solution of the master problem is not optimal over all weakly stable matchings
-                                
-                                # Add non-negativity constraint to the master for this new matching
-                                #name = 'GE0_' + str(len(self.w))
-                                #self.constraints[name] = LpConstraintVar(name, LpConstraintGE, 0)
-                                #self.master += self.constraints[name]
-
-                                # Go through all generated solutions.
-                                # To do this, first we should extract the gurobi model and access the solution pool through there.
-                                pricing_gurobi = self.pricing.solverModel
-
-                                n_sol_found = pricing_gurobi.SolCount
-
-                                if print_out:
-                                    print('Solutions found by pricing:', n_sol_found)
-                                
-                                # Binary vector to remember which matchings were improved
-                                counter_M_improved = np.zeros(n_sol_found)
-
-                                # Go through all matchings
-                                for t in range(n_sol_found):
-
-                                    pricing_gurobi.setParam('SolutionNumber', t)
-
-                                    # Add the matching found by the pricing problem to the master problem       
-                                    found_M = np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools))
-
-                                    # Find all variables by name
-                                    for (i,j) in self.PAIRS:
-                                        student_name = self.MyData.ID_stud[i]
-                                        school_name = self.MyData.ID_school[j]
-                                        name_var = f"M_{student_name}_{school_name}"
-                                        gurobi_var = pricing_gurobi.getVarByName(name_var)
-                                        found_M[i][j] = gurobi_var.Xn
-
-                                    self.add_matching(found_M, len(self.w), print_out)
-                                    #self.master.writeLP("TestColumnFormulation.lp")
-                                
-                                    self.M_list.append(found_M)
-                                    self.nr_matchings += 1
-                                    
-                                    # Exclude this matching from being find by the pricing problem in the future.
-                                    self.pricing += lpSum([self.M_pricing[i,j] * found_M[i][j] for (i,j) in self.PAIRS]) <= lpSum([found_M[i][j] for (i,j) in self.PAIRS]) - 1, f"EXCL_M_{self.nr_matchings-1}"
-                            
-                                    if print_out:  
-                                        if t == 0:               
-                                            print("Matching ", self.nr_matchings, "Objective value pricing 2 (rank):", pricing_gurobi.PoolObjVal + constant)
-
-                                            
-                                        elif t == n_sol_found - 1:
-                                            print("Matching ", self.nr_matchings, "Objective value pricing 2 (rank):", pricing_gurobi.PoolObjVal + constant)
-
-
-                        # Remove constraint that reduced cost is negative again
-                        self.pricing.constraints.pop("PricingObjConstr")
-                        
-                        # Change back to maximization
-                        self.pricing.sense = pl.LpMaximize
-
+                        # other problem to generate matchings
+                        # The following function minimizes the average rank over all matchings with negative reduced cost.
+                        #self.pricingMinRank(stab_constr, solver, print_log, time_limit, n_sol_pricing, gap_solutionpool_pricing, MIPGap, bool_ColumnGen, bool_supercolumn, print_out, pricing_obj, starting_time, solver_function)                        
                             
                     else:
                         optimal = True  
@@ -1093,7 +952,157 @@ class ModelColumnGen:
         for l in tqdm(self.N_MATCH, desc='Pricing exclude found matchings', unit='matchings', disable=not print_out):            
             self.pricing += lpSum([self.M_pricing[i,j] * self.M_list[l][i][j] for (i,j) in self.PAIRS]) <= lpSum([self.M_list[l][i][j] for (i,j) in self.PAIRS]) - 1, f"EXCL_M_{l}"
         
-    
+    def pricingMinRank(self, stab_constr: str, solver: str, print_log: str, time_limit: int, n_sol_pricing: int, gap_solutionpool_pricing: float, MIPGap: float, bool_ColumnGen: bool, bool_supercolumn: bool, print_out: bool, pricing_obj, starting_time, solver_function):
+        # Also try another way to find interesting matchings
+        if print_out:
+            print("\n\n***************************\nFind matchings negative reduced cost with low rank\n***************************\n\n")
+            #print(pricing_obj)
+        
+        # Add constraint to enforce that reduced cost is negative (or objective pricing positive)
+        self.pricing += (pricing_obj >= 0, "PricingObjConstr") 
+
+        self.pricing.sense = pl.LpMinimize
+        # Change objective function to minimize rank
+        new_obj = LpAffineExpression()
+        for (i,j) in self.PAIRS:
+            new_obj += self.M_pricing[i,j]*(self.MyData.rank_pref[i,j]+ 1) / self.MyData.n_stud # + 1 because the indexing starts from zero
+
+        
+        
+        # Add this variable to the model with the correct objective coefficient
+        self.pricing.objective = LpAffineExpression() 
+        self.pricing.setObjective(new_obj)
+        self.pricing.writeLP("PricingProblemMinRank.lp")
+
+        # Find "n_solutions" best solutions of this formulation
+
+        ###########
+        # From here same code as for usual pricing problem
+        ###########
+
+        # Update time limit:
+        current_time = time.monotonic()
+        new_time_limit = max(time_limit - (current_time - starting_time), 0)
+        if print_out:
+            print('New time limit', new_time_limit)
+
+        if print_log == True:  
+            #self.pricing.solve(solver_function())
+            
+            #print("\n\n Careful, pricing stops at first postive value!\n\n")
+            #self.pricing.solve(solver_function(timeLimit = new_time_limit, BestObjStop = -constant +0.0001))
+            self.pricing.solve(solver_function(timeLimit = new_time_limit,
+            PoolGap = gap_solutionpool_pricing,
+            PoolSolutions = n_sol_pricing,
+            #BestObjStop = -constant +0.0001,
+            PoolSearchMode = 2, #Find diverse solutions
+            MIPGap = 0.05)) 
+
+            # Will stop the solver once a matching with objective function at least zero has been found
+            #self.pricing.solve(solver_function())
+
+        else:
+            #self.pricing.solve(solver_function(msg=False, logPath = 'Logfile_pricing.log'))
+            with open(os.devnull, 'w') as devnull:
+                with redirect_stdout(devnull):
+                    #self.pricing.solve(solver_function(msg=False, timeLimit=new_time_limit, logPath = 'Logfile_pricing.log',BestObjStop = -constant + 0.0001))
+                    #print("\n\n Careful, pricing stops at first postive value!\n\n")
+                    self.pricing.solve(solver_function(msg=False, logPath = 'Logfile_pricing.log',timeLimit = new_time_limit,
+                        #BestObjStop = -constant +0.0001,
+                        PoolGap = gap_solutionpool_pricing,
+                        PoolSolutions = n_sol_pricing,
+                        PoolSearchMode = 2,
+                        MIPGap = MIPGap))
+            #self.pricing.solve(solver_function(msg=False, logPath = 'Logfile_pricing.log'))
+        
+
+        # If not infeasible:
+
+        
+        if self.pricing.status not in [0,-1]: # -1 is infeasible, 0 is unsolved (for example because interrupted earlier, or timelimit reached)
+            #print("Status code: ", self.pricing.status)
+            obj_pricing_var = self.pricing.objective.value()
+            #self.obj_pricing.append(obj_pricing_var)
+            if print_out:
+                print("\t\tObjective pricing 2 (rank): ", obj_pricing_var)
+
+        #if print_out:
+        if False:
+            for (i,j) in self.PAIRS:
+                print("M[",i,j,'] =', self.M_pricing[i,j].value())
+        
+        #### EVALUATE SOLUTION ####
+        if print_out:
+            print('Pricing status', self.pricing.status)
+        if self.pricing.status == 0: # Time limit exceeded
+            self.time_limit_exceeded = True
+            optimal = False
+            self.time_columnGen = self.time_limit
+            return self.generate_solution_report(print_out) 
+        
+        elif self.pricing.status != -1:   
+            if obj_pricing_var > 0:
+                # The solution of the master problem is not optimal over all weakly stable matchings
+                
+                # Add non-negativity constraint to the master for this new matching
+                #name = 'GE0_' + str(len(self.w))
+                #self.constraints[name] = LpConstraintVar(name, LpConstraintGE, 0)
+                #self.master += self.constraints[name]
+
+                # Go through all generated solutions.
+                # To do this, first we should extract the gurobi model and access the solution pool through there.
+                pricing_gurobi = self.pricing.solverModel
+
+                n_sol_found = pricing_gurobi.SolCount
+
+                if print_out:
+                    print('Solutions found by pricing:', n_sol_found)
+                
+                # Binary vector to remember which matchings were improved
+                counter_M_improved = np.zeros(n_sol_found)
+
+                # Go through all matchings
+                for t in range(n_sol_found):
+
+                    pricing_gurobi.setParam('SolutionNumber', t)
+
+                    # Add the matching found by the pricing problem to the master problem       
+                    found_M = np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools))
+
+                    # Find all variables by name
+                    for (i,j) in self.PAIRS:
+                        student_name = self.MyData.ID_stud[i]
+                        school_name = self.MyData.ID_school[j]
+                        name_var = f"M_{student_name}_{school_name}"
+                        gurobi_var = pricing_gurobi.getVarByName(name_var)
+                        found_M[i][j] = gurobi_var.Xn
+
+                    self.add_matching(found_M, len(self.w), print_out)
+                    #self.master.writeLP("TestColumnFormulation.lp")
+                
+                    self.M_list.append(found_M)
+                    self.nr_matchings += 1
+                    
+                    # Exclude this matching from being find by the pricing problem in the future.
+                    self.pricing += lpSum([self.M_pricing[i,j] * found_M[i][j] for (i,j) in self.PAIRS]) <= lpSum([found_M[i][j] for (i,j) in self.PAIRS]) - 1, f"EXCL_M_{self.nr_matchings-1}"
+            
+                    if print_out:  
+                        if t == 0:               
+                            print("Matching ", self.nr_matchings, "Objective value pricing 2 (rank):", pricing_gurobi.PoolObjVal)
+
+                            
+                        elif t == n_sol_found - 1:
+                            print("Matching ", self.nr_matchings, "Objective value pricing 2 (rank):", pricing_gurobi.PoolObjVal)
+
+
+        # Remove constraint that reduced cost is negative again
+        self.pricing.constraints.pop("PricingObjConstr")
+        
+        # Change back to maximization
+        self.pricing.sense = pl.LpMaximize
+
+
+
     def generate_solution_report(self, print_out = False):
         # Store everything in a solution report
         S = SolutionReport()
