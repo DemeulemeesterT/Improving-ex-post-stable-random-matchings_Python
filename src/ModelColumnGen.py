@@ -66,7 +66,7 @@ class ModelColumnGen:
     
     # Used this example as a template for Pulp: https://coin-or.github.io/pulp/CaseStudies/a_sudoku_problem.html
     
-    def __init__(self, MyData: Data, p: Assignment, p_DA: np.ndarray, bool_identical_students: bool, print_out: bool):
+    def __init__(self, MyData: Data, p: Assignment, p_DA: np.ndarray, bool_identical_students: bool, bool_punish_unassigned:bool, print_out: bool):
         """
         Initialize an instance of Model.
 
@@ -75,6 +75,7 @@ class ModelColumnGen:
             p (type: Assignment): instance of class Assignment (possibly including SICs). This will be used for warm start solution
             p_DA (type: np.ndarray): this is the probabilistic assignment which we want to sd_dominate
             bool_identical_students (bool): if True, give identical students the same probabilities
+            bool_punish_unassigned (bool): if True, give utility of 'n_schools' to being unassigned
             print_out (type: bool): boolean that controls which output is printed.
         """
         self.MyData = copy.deepcopy(MyData)
@@ -83,6 +84,8 @@ class ModelColumnGen:
         #self.p_DA = copy.deepcopy(p_DA)
         self.p_DA = p_DA.copy()
         self.bool_identical_students = bool_identical_students
+        self.bool_punish_unassigned = bool_punish_unassigned
+
 
         # Create the pulp model
         # 'self.master' refers to master problem
@@ -225,6 +228,7 @@ class ModelColumnGen:
             M = self.M_list[m]
             self.w[m].setInitialValue(self.p.w_set[M])
         
+        self.master.writeLP("TestColumnFormulation.lp")
         
         
       
@@ -304,13 +308,22 @@ class ModelColumnGen:
         
                         
         # Compute objective coefficient of this variable (average rank)
-        obj_coeff = 0
-        for (i,j) in self.PAIRS:
-            obj_coeff += M_in[i,j]*(self.MyData.rank_pref[i,j]+ 1) / self.MyData.n_stud # + 1 because the indexing starts from zero
+        if not self.bool_punish_unassigned:
+            obj_coeff = 0
+            for (i,j) in self.PAIRS:
+                obj_coeff += M_in[i,j]*(self.MyData.rank_pref[i,j]+ 1) / self.MyData.n_stud # + 1 because the indexing starts from zero
+
+            
+        else:
+            # If we punish being unassigned, give utility of 'n_schools' to being unassigned
+            obj_coeff = self.MyData.n_schools
+            for (i,j) in self.PAIRS:
+                obj_coeff -= M_in[i,j]*(self.MyData.n_schools - (self.MyData.rank_pref[i,j]+ 1)) / self.MyData.n_stud # + 1 because the indexing starts from zero
+                #if print_out:
+                #    print("Objective coefficient", obj_coeff)
 
         # Add this variable to the model with the correct objective coefficient
         self.master.setObjective(self.master.objective+obj_coeff*self.w[index])
-
         
         #self.N_MATCH = range(len(self.M_list))
         #print(self.N_MATCH)
@@ -742,7 +755,7 @@ class ModelColumnGen:
                                 name_var = f"M_{student_name}_{school_name}"
                                 gurobi_var = pricing_gurobi.getVarByName(name_var)
                                 found_M[i][j] = gurobi_var.Xn
-                                
+
                             self.M_list.append(found_M)
                             self.nr_matchings =self.nr_matchings + 1
                             self.N_MATCH = range(self.nr_matchings)
@@ -803,7 +816,6 @@ class ModelColumnGen:
                             #print("Improving matchings found by SICs", sum(counter_M_improved)) 
 
                         self.N_MATCH = range(self.nr_matchings)
-                        print('\n\n\n\n\nself.M_list', len(self.M_list))
     
                         #print("Matching added.")
                         #if print_out:
