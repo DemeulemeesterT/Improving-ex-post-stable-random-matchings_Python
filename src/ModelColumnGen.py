@@ -1324,21 +1324,21 @@ class ModelColumnGen:
                             print("Matching ", self.nr_matchings, "Objective value pricing 2 (rank):", pricing_gurobi.PoolObjVal)
 
                     # Find SICs
-                    M_SIC = SIC(self.MyData, found_M, False)
-                    if not np.array_equal(M_SIC, found_M): # If improvement realized by executing SICs
-                        counter_M_improved[t] = 1
-                        self.M_list.append(M_SIC)
-                        self.nr_matchings = self.nr_matchings + 1
-                        self.N_MATCH = range(self.nr_matchings)
-                        self.add_matching(M_SIC, len(self.w), print_out)
-                        #self.master.writeLP("TestColumnFormulation.lp")
+                    #M_SIC = SIC(self.MyData, found_M, False)
+                    #if not np.array_equal(M_SIC, found_M): # If improvement realized by executing SICs
+                    #    counter_M_improved[t] = 1
+                    #    self.M_list.append(M_SIC)
+                    #    self.nr_matchings = self.nr_matchings + 1
+                    #    self.N_MATCH = range(self.nr_matchings)
+                    #    self.add_matching(M_SIC, len(self.w), print_out)
+                    #    #self.master.writeLP("TestColumnFormulation.lp")
                                         #    self.M_list.append(M_SIC)
                         
                        
-                        # Exclude this matching from being find by the pricing problem in the future.
-                        self.pricing += lpSum([self.M_pricing[i,j] * M_SIC[i][j] for (i,j) in self.PAIRS]) <= lpSum([M_SIC[i][j] for (i,j) in self.PAIRS]) - 1, f"EXCL_M_{self.nr_matchings-1}"
-                if print_out:
-                    print("Improving matchings found by SICs", sum(counter_M_improved))
+                    #    # Exclude this matching from being find by the pricing problem in the future.
+                    #    self.pricing += lpSum([self.M_pricing[i,j] * M_SIC[i][j] for (i,j) in self.PAIRS]) <= lpSum([M_SIC[i][j] for (i,j) in self.PAIRS]) - 1, f"EXCL_M_{self.nr_matchings-1}"
+                #if print_out:
+                #    print("Improving matchings found by SICs", sum(counter_M_improved))
 
         # Remove constraint that reduced cost is negative again
         self.pricing.constraints.pop("PricingObjConstr")

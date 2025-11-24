@@ -40,6 +40,7 @@ def DA_STB(MyData: Data, n_iter: int, DA_impl: str, bool_SIC: bool, seed = 12345
     M_set = set()
     w_set = {} # Contains the weights of the matchings in M_set. Each key of this set is a matching in M_set
 
+    counter = 0
     for p in tqdm(permut, desc='Generate DA_STB', unit = 'perturb', disable= not print_out):
         prior_new = generate_strict_prior_from_perturbation(MyData, p, print_out)
                 
@@ -47,6 +48,7 @@ def DA_STB(MyData: Data, n_iter: int, DA_impl: str, bool_SIC: bool, seed = 12345
         Data_new_prior = Data(MyData.n_stud, MyData.n_schools, MyData.pref, prior_new, MyData.cap, MyData.ID_stud, MyData.ID_school, MyData.file_name)
         if DA_impl == "GS":
             M_computed = gale_shapley(Data_new_prior)
+            
         elif DA_impl == "EE":
             # Change format of preferences and priorities
             N = transform_pref_us_to_EE(Data_new_prior)
@@ -70,7 +72,8 @@ def DA_STB(MyData: Data, n_iter: int, DA_impl: str, bool_SIC: bool, seed = 12345
             w_set[key] = w_set[key] + 1/n_iter
         else:
             w_set[key] = 1/n_iter
-        M_sum = M_sum + M_computed            
+        M_sum = M_sum + M_computed
+        counter = counter + 1            
         
     M_sum = M_sum / n_iter
 

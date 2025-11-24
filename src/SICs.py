@@ -71,6 +71,7 @@ def SIC(MyData: Data, M: np.ndarray, print_out = False):
         'improved_students'
     """
 
+
     M_out = transform_M_EE_to_us(MyData, result['optimal_all'], print_out)
 
     return M_out

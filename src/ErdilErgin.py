@@ -92,7 +92,10 @@ def transform_prior_EE_to_us(prior_in: list, print_out = False):
 def transform_M_EE_to_us(MyData: Data, M_in: list, print_out=False):
     M_out = np.zeros(shape=(MyData.n_stud, MyData.n_schools))
 
+    #print(M_in)
     for j, assigned_students in enumerate(M_in):
+        #print(j)
+        #print(assigned_students)
         for i in assigned_students:
             M_out[i][j] = 1
 

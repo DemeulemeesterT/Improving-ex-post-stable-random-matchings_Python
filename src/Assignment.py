@@ -299,6 +299,44 @@ class Assignment:
                 'rank_increase_by_stud': rank_increase_by_stud, "average_rank_increase": average_rank_increase,
                 'median_rank_improvement': median_rank_improvement}
     
+    def stability_test(self, print_out: bool):
+        """
+        Tests whether the matchings in this assignment are weakly stable 
+        """
+        self.M_list = list(self.M_set)
+        unstable_pairs = []
+
+        # Go through all matchings
+        counter = 0
+        for m in self.M_list:
+            for i in range(self.MyData.n_stud):
+                for j in range(self.MyData.n_schools):
+                    if self.M_list[counter][i][j] == 1:
+                        matched_school = j
+                
+                # Check whether student i prefers school j to her assigned schools
+                for j in range(len(self.MyData.pref[i])):
+                    test_school = self.MyData.pref_index[i][j]
+
+                    # Check whether student i prefers school j to her assigned schools
+                    if self.MyData.rank_pref[i][test_school] < self.MyData.rank_pref[i][matched_school]:
+                        # Check whether school j prefers student i to some assigned student
+                        worst_assigned_rank = self.MyData.n_stud
+                        for k in range(self.MyData.n_stud):
+                            if self.M_list[counter][k][test_school] == 1:
+                                assigned_student = k
+                        
+                                if self.MyData.rank_prior[test_school][i] < self.MyData.rank_prior[test_school][assigned_student]:
+                                    unstable_pairs.append((i, test_school, m))
+                                    if print_out:
+                                        print(f"Matching {counter}: Unstable pair: Student {i} and School {test_school}.\nM({i},{matched_school}) = 1, M({assigned_student}, {test_school}) = 1")
+            counter += 1    
+        if print_out:
+            if len(unstable_pairs) == 0:
+                print("The assignment only contains weakly stable matchings.")
+            else:
+                print(f"The assignment contains weakly unstable matchings! ")
+
 
 # Same function, but just takes a matrix with assignment probabilities as an input
 def find_identical_students_from_matrix(p_input: np.ndarray, MyData: Data, print_out = False):
@@ -340,3 +378,4 @@ def find_identical_students_from_matrix(p_input: np.ndarray, MyData: Data, print
                 identical_students.append([i,j])
     
     return identical_students
+
