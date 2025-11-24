@@ -1188,9 +1188,8 @@ class ModelColumnGen:
             name_constr = "FOSD_" +  str(self.MyData.ID_stud[i]) + "_" + str(j)
             dual_value=self.master.constraints[name_constr].pi
         
-            new_obj += self.M_pricing[i,j]*(self.MyData.rank_pref[i,j]+ 1 - dual_value/self.max_dual) / self.MyData.n_stud # + 1 because the indexing starts from zero
-
-        
+            new_obj += self.M_pricing[i,j]*(self.MyData.rank_pref[i,j]+ 1 -0.5*dual_value/self.max_dual) / self.MyData.n_stud # + 1 because the indexing starts from zero
+                 
         
         # Add this variable to the model with the correct objective coefficient
         self.pricing.objective = LpAffineExpression() 
