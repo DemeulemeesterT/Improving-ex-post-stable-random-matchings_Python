@@ -228,7 +228,7 @@ class ModelColumnGen:
             M = self.M_list[m]
             self.w[m].setInitialValue(self.p.w_set[M])
         
-        self.master.writeLP("TestColumnFormulation.lp")
+        #self.master.writeLP("TestColumnFormulation.lp")
         
         
       
@@ -436,7 +436,7 @@ class ModelColumnGen:
             # String can't be used as the argument in solve method, so convert it like this:
             solver_function = globals()[solver]  # Retrieves the GUROBI function or class
         
-            self.master.writeLP("TestColumnFormulation.lp")
+            #self.master.writeLP("TestColumnFormulation.lp")
 
             # Solve the formulation
             if print_log == False:
@@ -550,8 +550,8 @@ class ModelColumnGen:
                             duals[name_duals] = 0
 
                         #if duals[name_duals] > 0.00001:
-                        if print_out:
-                            print(name_duals, duals[name_duals])
+                        #if print_out:
+                        #    print(name_duals, duals[name_duals])
                                         #for m in self.N_MATCH:
                 #    name_GE = 'GE0_' + str(m)
                 #    duals[name_GE] = self.master.constraints[name_GE].pi
@@ -649,8 +649,8 @@ class ModelColumnGen:
 
                 self.pricing.objective = LpAffineExpression()
                 self.pricing.setObjective(pricing_obj)
-                if print_out:
-                    print(pricing_obj)
+                #if print_out:
+                #    print(pricing_obj)
 
                 # Intermezzo: now that we have the dual variables, we can check whether the supercolumn can be removed
                     # Remove if it had a weight of zero in master problem
@@ -666,7 +666,7 @@ class ModelColumnGen:
                         remove_supercolumn = True
                         
                 
-                self.pricing.writeLP("PricingProblem.lp")
+                #self.pricing.writeLP("PricingProblem.lp")
 
                 #for m in self.N_MATCH:
                 #    name_GE = 'GE0_' + str(m)
@@ -767,9 +767,9 @@ class ModelColumnGen:
 
                         if print_out:
                             print('Solutions found by pricing:', n_sol_found)
-                            if stab_constr == "CUTOFF":
-                                for i in self.SCHOOLS:
-                                    print("Cutoff school", i, ":", self.t[i].varValue)
+                            #if stab_constr == "CUTOFF":
+                            #    for i in self.SCHOOLS:
+                            #        print("Cutoff school", i, ":", self.t[i].varValue)
                         
                         # Binary vector to remember which matchings were improved
                         counter_M_improved = np.zeros(n_sol_found)
@@ -794,8 +794,8 @@ class ModelColumnGen:
                             self.nr_matchings =self.nr_matchings + 1
                             self.N_MATCH = range(self.nr_matchings)
                             self.add_matching(found_M, len(self.w), print_out)
-                            if print_out:
-                                print(found_M)
+                            #if print_out:
+                            #    print(found_M)
                             #self.master.writeLP("TestColumnFormulation.lp")
                         
                             
@@ -962,7 +962,7 @@ class ModelColumnGen:
                 # Go through all schools that are weakly more preferred than current school by i
                 for l in self.SCHOOLS:
                     if self.MyData.rank_pref[i][l] <= self.MyData.rank_pref[i][j]:
-                        lin -= (self.M_pricing[(i,l)] * (s_max[j]))
+                        lin -= (self.M_pricing[(i,l)] * (s_max[j]+1))
 
                     
                 # Add variable for cutoff score
@@ -992,7 +992,7 @@ class ModelColumnGen:
 
             for j in self.SCHOOLS:
                 lin = LpAffineExpression()
-                self.pricing += (self.t[j] >= (1 - self.f[j]) * (s_max[j]), f"CUTOFF4_{j}")
+                self.pricing += (self.t[j] >= (1 - self.f[j]) * (s_max[j]+1), f"CUTOFF4_{j}")
 
         
         # Each student at most assigned to one school
