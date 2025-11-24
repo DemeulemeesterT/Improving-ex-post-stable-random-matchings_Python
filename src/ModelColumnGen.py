@@ -311,6 +311,10 @@ class ModelColumnGen:
         # Add this variable to the model with the correct objective coefficient
         self.master.setObjective(self.master.objective+obj_coeff*self.w[index])
 
+        
+        #self.N_MATCH = range(len(self.M_list))
+        #print(self.N_MATCH)
+
         #self.master.writeLP("TestColumnFormulation.lp")
 
 
@@ -467,11 +471,13 @@ class ModelColumnGen:
                                 print("\n Supercolumn added to model to enforce feasibility.\n")
                             M_super = np.ones(shape=(self.MyData.n_stud, self.MyData.n_schools))
                             index_super_column = len(self.w)
-                            self.add_matching(M_super, len(self.w), False)
-                                
-                            self.M_list.append(M_super)
-                            self.nr_matchings += 1
 
+                            
+                            self.M_list.append(M_super)
+                            self.nr_matchings =self.nr_matchings + 1
+                            self.N_MATCH = range(self.nr_matchings)
+                            self.add_matching(M_super, len(self.w), False)
+   
                             supercolumn_in_model = True
 
                             # Modify objective coefficient:
@@ -736,12 +742,14 @@ class ModelColumnGen:
                                 name_var = f"M_{student_name}_{school_name}"
                                 gurobi_var = pricing_gurobi.getVarByName(name_var)
                                 found_M[i][j] = gurobi_var.Xn
-
+                                
+                            self.M_list.append(found_M)
+                            self.nr_matchings =self.nr_matchings + 1
+                            self.N_MATCH = range(self.nr_matchings)
                             self.add_matching(found_M, len(self.w), print_out)
                             #self.master.writeLP("TestColumnFormulation.lp")
                         
-                            self.M_list.append(found_M)
-                            self.nr_matchings += 1
+                            
                             
                             # Exclude this matching from being find by the pricing problem in the future.
                             self.pricing += lpSum([self.M_pricing[i,j] * found_M[i][j] for (i,j) in self.PAIRS]) <= lpSum([found_M[i][j] for (i,j) in self.PAIRS]) - 1, f"EXCL_M_{self.nr_matchings-1}"
@@ -795,6 +803,7 @@ class ModelColumnGen:
                             #print("Improving matchings found by SICs", sum(counter_M_improved)) 
 
                         self.N_MATCH = range(self.nr_matchings)
+                        print('\n\n\n\n\nself.M_list', len(self.M_list))
     
                         #print("Matching added.")
                         #if print_out:
@@ -1079,11 +1088,14 @@ class ModelColumnGen:
                         gurobi_var = pricing_gurobi.getVarByName(name_var)
                         found_M[i][j] = gurobi_var.Xn
 
+
+                    self.M_list.append(found_M)
+                    self.nr_matchings = self.nr_matchings + 1
+                    self.N_MATCH = range(self.nr_matchings)
                     self.add_matching(found_M, len(self.w), print_out)
                     #self.master.writeLP("TestColumnFormulation.lp")
                 
-                    self.M_list.append(found_M)
-                    self.nr_matchings += 1
+                    
                     
                     # Exclude this matching from being find by the pricing problem in the future.
                     self.pricing += lpSum([self.M_pricing[i,j] * found_M[i][j] for (i,j) in self.PAIRS]) <= lpSum([found_M[i][j] for (i,j) in self.PAIRS]) - 1, f"EXCL_M_{self.nr_matchings-1}"
@@ -1192,7 +1204,10 @@ class ModelColumnGen:
             self.Xdecomp = [] # Matchings in the found decomposition
             self.Xdecomp_coeff = [] # Weights of these matchings
 
-
+            #if print_out:
+                #print('self.N_MATCH', self.N_MATCH)
+                #print('self.w', len(self.w))
+                #print('self.M_list', len(self.M_list))
             for l in self.N_MATCH:
                 self.Xdecomp.append(np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools)))
                 self.Xdecomp_coeff.append(self.w[l].varValue)
