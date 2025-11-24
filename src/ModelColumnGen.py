@@ -548,6 +548,10 @@ class ModelColumnGen:
                         duals[name_duals]=self.master.constraints[name_constr].pi
                         if abs(duals[name_duals] < 0.00001): # Get rid of small numerical inaccuracies
                             duals[name_duals] = 0
+
+                        #if duals[name_duals] > 0.00001:
+                        if print_out:
+                            print(name_duals, duals[name_duals])
                                         #for m in self.N_MATCH:
                 #    name_GE = 'GE0_' + str(m)
                 #    duals[name_GE] = self.master.constraints[name_GE].pi
@@ -555,25 +559,51 @@ class ModelColumnGen:
                 #    print(duals)
                 
                 #for name in duals:
-                #    if duals[name] > 0:
-                #        print(name, duals[name])
+                    #if duals[name] > 0:
+                        #print(name, duals[name])
                     
                 # Modify objective function pricing problem
+                pricing_obj = LpAffineExpression()
                 pricing_obj = LpAffineExpression()
                 for i in self.STUD:
                     #print('student ', i)
                     for j in range(len(self.MyData.pref[i])): 
                         school_name = self.MyData.pref_index[i][j]
-                        # pricing_obj -= self.M_pricing[i,school_name] * (self.MyData.rank_pref[i,school_name]+ 1) / self.MyData.n_stud # + 1 because the indexing starts from zero
-                        #print('  school ', school_name, -(self.MyData.rank_pref[i,school_name]+ 1) / self.MyData.n_stud)
-                        new_coefficient = - (self.MyData.rank_pref[i,school_name]+ 1) / self.MyData.n_stud
+                        if self.bool_punish_unassigned == False:
+                            pricing_obj += self.M_pricing[i,school_name] * ( - (self.MyData.rank_pref[i,school_name]+ 1) / self.MyData.n_stud ) # + 1 because the indexing starts from zero
+                        else:   
+                            raise ValueError(f"The pricing problem with punishing unassigned students is not yet implemented. Please set bool_punish_unassigned to False.")
+                        
                         for k in range(j+1):
                             pref_school = self.MyData.pref_index[i][k]
                             name = "Mu_" +  str(self.MyData.ID_stud[i]) + "_" + str(pref_school)
-                            new_coefficient = new_coefficient + duals[name] 
-                            #pricing_obj += self.M_pricing[i,pref_school] * duals[name}
-                            #print('      school ', pref_school, duals[name])
-                        pricing_obj += self.M_pricing[i,pref_school] * new_coefficient 
+                            pricing_obj += self.M_pricing[i,pref_school] * duals[name] 
+
+
+
+
+
+                #################################################
+                # OLD VERSION
+                # Modify objective function pricing problem
+                #pricing_obj = LpAffineExpression()
+                #for i in self.STUD:
+                #    #print('student ', i)
+                #    for j in range(len(self.MyData.pref[i])): 
+                #        school_name = self.MyData.pref_index[i][j]
+                #        # pricing_obj -= self.M_pricing[i,school_name] * (self.MyData.rank_pref[i,school_name]+ 1) / self.MyData.n_stud # + 1 because the indexing starts from zero
+                #        #print('  school ', school_name, -(self.MyData.rank_pref[i,school_name]+ 1) / self.MyData.n_stud)
+                #        new_coefficient = - (self.MyData.rank_pref[i,school_name]+ 1) / self.MyData.n_stud
+                #        for k in range(j+1):
+                #            pref_school = self.MyData.pref_index[i][k]
+                #            name = "Mu_" +  str(self.MyData.ID_stud[i]) + "_" + str(pref_school)
+                #            new_coefficient = new_coefficient + duals[name] 
+                #            #pricing_obj += self.M_pricing[i,pref_school] * duals[name}
+                #            #print('      school ', pref_school, duals[name])
+                #        pricing_obj += self.M_pricing[i,pref_school] * new_coefficient 
+                ##################################################
+
+
 
                         #if print_out:
                             #if new_coefficient > 0.00001:
@@ -619,6 +649,8 @@ class ModelColumnGen:
 
                 self.pricing.objective = LpAffineExpression()
                 self.pricing.setObjective(pricing_obj)
+                if print_out:
+                    print(pricing_obj)
 
                 # Intermezzo: now that we have the dual variables, we can check whether the supercolumn can be removed
                     # Remove if it had a weight of zero in master problem
@@ -685,7 +717,6 @@ class ModelColumnGen:
                 
 
                 # If not infeasible:
-
                 
                 if self.pricing.status not in [0,-1]: # -1 is infeasible, 0 is unsolved (for example because interrupted earlier, or timelimit reached)
                     #print("Status code: ", self.pricing.status)
@@ -736,6 +767,9 @@ class ModelColumnGen:
 
                         if print_out:
                             print('Solutions found by pricing:', n_sol_found)
+                            if stab_constr == "CUTOFF":
+                                for i in self.SCHOOLS:
+                                    print("Cutoff school", i, ":", self.t[i].varValue)
                         
                         # Binary vector to remember which matchings were improved
                         counter_M_improved = np.zeros(n_sol_found)
@@ -760,6 +794,8 @@ class ModelColumnGen:
                             self.nr_matchings =self.nr_matchings + 1
                             self.N_MATCH = range(self.nr_matchings)
                             self.add_matching(found_M, len(self.w), print_out)
+                            if print_out:
+                                print(found_M)
                             #self.master.writeLP("TestColumnFormulation.lp")
                         
                             
