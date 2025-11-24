@@ -321,7 +321,6 @@ class Assignment:
                     # Check whether student i prefers school j to her assigned schools
                     if self.MyData.rank_pref[i][test_school] < self.MyData.rank_pref[i][matched_school]:
                         # Check whether school j prefers student i to some assigned student
-                        worst_assigned_rank = self.MyData.n_stud
                         for k in range(self.MyData.n_stud):
                             if self.M_list[counter][k][test_school] == 1:
                                 assigned_student = k
@@ -330,6 +329,19 @@ class Assignment:
                                     unstable_pairs.append((i, test_school, m))
                                     if print_out:
                                         print(f"Matching {counter}: Unstable pair: Student {i} and School {test_school}.\nM({i},{matched_school}) = 1, M({assigned_student}, {test_school}) = 1")
+            
+                        # Also add check that capacity of more preferred schools are not filled
+                        capacity_filled = 0
+                        for k in range(self.MyData.n_stud):
+                            if self.M_list[counter][k][test_school] == 1:
+                                capacity_filled += 1
+                        
+                        if capacity_filled < self.MyData.cap[test_school]:
+                            unstable_pairs.append((i, test_school, m))
+                            if print_out:
+                                print(f"Matching {counter}: Unstable pair due to unfilled capacity: Student {i} and School {test_school}.\nM({i},{matched_school}) = 1, Capacity filled: {capacity_filled}, Capacity: {self.MyData.cap[test_school]}")
+
+
             counter += 1    
         if print_out:
             if len(unstable_pairs) == 0:

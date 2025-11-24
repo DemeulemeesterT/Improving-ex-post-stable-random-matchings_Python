@@ -56,6 +56,9 @@ def DataGenEE(n_students: int, n_schools: int, alpha: float, beta: float, pref_l
 
     # Generate data
     result = cor_gen(n_students, n_schools, pref_list_length, param)
+    #print(result['student_utilities'])
+    #print(result['N'])
+    #print(result['A'])
     N = result['N'] #pref
     A = result['A'] #prior
     Q = result['Q'] #cap
@@ -63,6 +66,7 @@ def DataGenEE(n_students: int, n_schools: int, alpha: float, beta: float, pref_l
     # Transform format
     # Preferences & capacities: okay
     A = transform_prior_EE_to_us(A)
+    #print(A)
 
     stud =  list(range(n_students))
     schools = list(range(n_schools))
