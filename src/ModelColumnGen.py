@@ -436,7 +436,7 @@ class ModelColumnGen:
             # String can't be used as the argument in solve method, so convert it like this:
             solver_function = globals()[solver]  # Retrieves the GUROBI function or class
         
-            #self.master.writeLP("TestColumnFormulation.lp")
+            self.master.writeLP("TestColumnFormulation.lp")
 
             # Solve the formulation
             if print_log == False:
@@ -634,7 +634,7 @@ class ModelColumnGen:
                         remove_supercolumn = True
                         
                 
-                #self.pricing.writeLP("PricingProblem.lp")
+                self.pricing.writeLP("PricingProblem.lp")
 
                 #for m in self.N_MATCH:
                 #    name_GE = 'GE0_' + str(m)
@@ -926,7 +926,7 @@ class ModelColumnGen:
                 # Go through all schools that are weakly more preferred than current school by i
                 for l in self.SCHOOLS:
                     if self.MyData.rank_pref[i][l] <= self.MyData.rank_pref[i][j]:
-                        lin -= (self.M_pricing[(i,l)] * (s_max[j]+1))
+                        lin -= (self.M_pricing[(i,l)] * (s_max[j]))
 
                     
                 # Add variable for cutoff score
@@ -956,7 +956,7 @@ class ModelColumnGen:
 
             for j in self.SCHOOLS:
                 lin = LpAffineExpression()
-                self.pricing += (self.t[j] >= (1 - self.f[j]) * (s_max[j]+1), f"CUTOFF4_{j}")
+                self.pricing += (self.t[j] >= (1 - self.f[j]) * (s_max[j]), f"CUTOFF4_{j}")
 
         
         # Each student at most assigned to one school
