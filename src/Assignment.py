@@ -34,8 +34,12 @@ class Assignment:
         self.file_name = MyData.file_name
         self.MyData = copy.deepcopy(MyData)
         self.assignment = copy.deepcopy(p)
-        self.M_set = copy.deepcopy(M_set_in)
-        self.w_set = copy.deepcopy(w_set_in)
+        #self.M_set = copy.deepcopy(M_set_in)
+        #self.w_set = copy.deepcopy(w_set_in)
+            # Deepcopies were too memory-heavy for larger instances and many matchings...
+        self.M_set = M_set_in.copy() if M_set_in is not None else None
+        self.w_set = w_set_in.copy() if w_set_in is not None else None
+
         self.label = label
         if label == None:
             self.label = ""

@@ -78,8 +78,10 @@ class ModelColumnGen:
             print_out (type: bool): boolean that controls which output is printed.
         """
         self.MyData = copy.deepcopy(MyData)
-        self.p = copy.deepcopy(p)
-        self.p_DA = copy.deepcopy(p_DA)
+        #self.p = copy.deepcopy(p)
+        self.p = p
+        #self.p_DA = copy.deepcopy(p_DA)
+        self.p_DA = p_DA.copy()
         self.bool_identical_students = bool_identical_students
 
         # Create the pulp model
@@ -123,13 +125,13 @@ class ModelColumnGen:
         #self.M = LpVariable.dicts("M", [(k, i, j) for k in self.N_MATCH for i, j in self.PAIRS], cat="Binary")
 
         # Store labels to make understanding output easier
-        self.labels = {}
-        for k in self.N_MATCH:
-            for i in range(self.MyData.n_stud):
-                for j in range(self.MyData.n_schools):
-                    student_name = self.MyData.ID_stud[i]
-                    school_name = self.MyData.ID_school[j]
-                    self.labels[k, i, j] = f"M_{k}_{student_name}_{school_name}"
+        #self.labels = {}
+        #for k in self.N_MATCH:
+        #    for i in range(self.MyData.n_stud):
+        #        for j in range(self.MyData.n_schools):
+        #            student_name = self.MyData.ID_stud[i]
+        #            school_name = self.MyData.ID_school[j]
+        #            self.labels[k, i, j] = f"M_{k}_{student_name}_{school_name}"
 
 
 
@@ -380,7 +382,7 @@ class ModelColumnGen:
         if bool_ColumnGen == True:
             self.build_pricing(stab_constr, print_out)
 
-            self.pricing.writeLP("PricingProblem.lp")
+            #self.pricing.writeLP("PricingProblem.lp")
 
 
         
@@ -417,7 +419,7 @@ class ModelColumnGen:
             # String can't be used as the argument in solve method, so convert it like this:
             solver_function = globals()[solver]  # Retrieves the GUROBI function or class
         
-            self.master.writeLP("TestColumnFormulation.lp")
+            #self.master.writeLP("TestColumnFormulation.lp")
 
             # Solve the formulation
             if print_log == False:
@@ -613,7 +615,7 @@ class ModelColumnGen:
                         remove_supercolumn = True
                         
                 
-                self.pricing.writeLP("PricingProblem.lp")
+                #self.pricing.writeLP("PricingProblem.lp")
 
                 #for m in self.N_MATCH:
                 #    name_GE = 'GE0_' + str(m)
@@ -972,7 +974,7 @@ class ModelColumnGen:
         # Add this variable to the model with the correct objective coefficient
         self.pricing.objective = LpAffineExpression() 
         self.pricing.setObjective(new_obj)
-        self.pricing.writeLP("PricingProblemMinRank.lp")
+        #self.pricing.writeLP("PricingProblemMinRank.lp")
 
         # Find "n_solutions" best solutions of this formulation
 
