@@ -1165,6 +1165,63 @@ class ModelColumnGen:
 
 
 
+    def get_pricing_objective_of_matching(self, M:np.ndarray, print_out:bool):
+        pricing_obj_value = 0
+        
+        # Get dual variables
+        duals = {}
+        
+        duals["Sum_to_one"] = self.master.constraints["Sum_to_one"].pi
+
+        for i in self.STUD:
+            for j in range(len(self.MyData.pref[i])):
+                school_name = self.MyData.pref_index[i][j]
+                name_duals = "Mu_" +  str(self.MyData.ID_stud[i]) + "_" + str(school_name)
+                name_constr = "FOSD_" +  str(self.MyData.ID_stud[i]) + "_" + str(school_name)
+                    
+                duals[name_duals]=self.master.constraints[name_constr].pi
+                if print_out:
+                    if abs(duals[name_duals] < 0.00001): # Get rid of small numerical inaccuracies
+                        duals[name_duals] = 0
+                
+            
+        # Modify objective function pricing problem
+        for i in self.STUD:
+            #print('student ', i)
+            for j in range(len(self.MyData.pref[i])): 
+                school_name = self.MyData.pref_index[i][j]
+                if self.bool_punish_unassigned == False:
+                    pricing_obj_value += M[i,school_name] * ( - (self.MyData.rank_pref[i,school_name]+ 1) / self.MyData.n_stud ) # + 1 because the indexing starts from zero
+                else:   
+                    raise NotImplementedError(f"The pricing problem with punishing unassigned students is not yet implemented. Please set bool_punish_unassigned to False.")
+                
+                for k in range(j+1):
+                    pref_school = self.MyData.pref_index[i][k]
+                    name = "Mu_" +  str(self.MyData.ID_stud[i]) + "_" + str(pref_school)
+                    pricing_obj_value += M[i,pref_school] * duals[name] 
+
+
+        
+
+        if self.bool_identical_students:
+            raise NotImplementedError("Getting pricing objective of a matching not implemented for identical students case yet.")
+            
+
+
+        #if print_out:
+        #    print(pricing_obj)
+        #print("Duals Sum_to_one", duals["Sum_to_one"])
+        #print("Duals", duals)
+
+        # Add the constant terms!
+        constant = 0
+        constant += duals['Sum_to_one']
+        pricing_obj_value += constant
+
+        return pricing_obj_value
+
+
+
     def generate_solution_report(self, print_out = False):
         # Store everything in a solution report
         S = SolutionReport()
