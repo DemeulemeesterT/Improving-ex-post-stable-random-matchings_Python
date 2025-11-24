@@ -536,6 +536,8 @@ class ModelColumnGen:
                 ## SOLVE PRICING ####
                 # Get dual variables
                 duals = {}
+
+                self.max_dual = 0
                 
                 duals["Sum_to_one"] = self.master.constraints["Sum_to_one"].pi
 
@@ -546,6 +548,10 @@ class ModelColumnGen:
                         name_constr = "FOSD_" +  str(self.MyData.ID_stud[i]) + "_" + str(school_name)
                             
                         duals[name_duals]=self.master.constraints[name_constr].pi
+
+                        if duals[name_duals] > self.max_dual:
+                            self.max_dual = duals[name_duals]
+
                         if abs(duals[name_duals] < 0.00001): # Get rid of small numerical inaccuracies
                             duals[name_duals] = 0
 
@@ -868,7 +874,7 @@ class ModelColumnGen:
 
                         # other problem to generate matchings
                         # The following function minimizes the average rank over all matchings with negative reduced cost.
-                        self.pricingMinRank(stab_constr, solver, print_log, time_limit, 500, gap_solutionpool_pricing, MIPGap, bool_ColumnGen, bool_supercolumn, print_out, pricing_obj, starting_time, solver_function)                        
+                        self.pricingMinRank(stab_constr, solver, print_log, time_limit, 20, gap_solutionpool_pricing, MIPGap, bool_ColumnGen, bool_supercolumn, print_out, pricing_obj, starting_time, solver_function)                        
                         
  
                     else:
@@ -997,37 +1003,6 @@ class ModelColumnGen:
                                 # Exclude this matching from being find by the pricing problem in the future.
                                 self.pricing += lpSum([self.M_pricing[i,j] * found_M[i][j] for (i,j) in self.PAIRS]) <= lpSum([found_M[i][j] for (i,j) in self.PAIRS]) - 1, f"EXCL_M_{self.nr_matchings-1}"
                         
-                                # Find SICs
-                                #M_SIC = SIC(self.MyData, found_M, False)
-                                #if not np.array_equal(M_SIC, found_M): # If improvement realized by executing SICs
-                                #    counter_M_improved[t] = 1
-                                #    self.add_matching(M_SIC, len(self.w), print_out)
-                                #    #self.master.writeLP("TestColumnFormulation.lp")
-                                
-                                #    self.M_list.append(M_SIC)
-                                #    self.nr_matchings += 1
-                                    
-                                #    # Exclude this matching from being find by the pricing problem in the future.
-                                #    self.pricing += lpSum([self.M_pricing[i,j] * M_SIC[i][j] for (i,j) in self.PAIRS]) <= lpSum([M_SIC[i][j] for (i,j) in self.PAIRS]) - 1, f"EXCL_M_{self.nr_matchings-1}"
-
-                                #    if print_out:
-                                #        # Compute reduced cost of this new matching:
-                                #        M_obj = 0
-                                #        for i in self.STUD:
-                                #            #print('student ', i)
-                                #            for j in range(len(self.MyData.pref[i])): 
-                                #                school_name = self.MyData.pref_index[i][j]
-                                #                pricing_obj -= self.M_pricing[i,school_name] * (self.MyData.rank_pref[i,school_name]+ 1) / self.MyData.n_stud # + 1 because the indexing starts from zero
-                                #                #print('  school ', school_name, -(self.MyData.rank_pref[i,school_name]+ 1) / self.MyData.n_stud)
-                                #                for k in range(j+1):
-                                #                    pref_school = self.MyData.pref_index[i][k]
-                                #                    name = "Mu_" +  str(self.MyData.ID_stud[i]) + "_" + str(pref_school)
-                                #                    M_obj += M_SIC[i][pref_school] * duals[name]
-                                #                    #print('      school ', pref_school, duals[name])
-
-                                #        M_obj += duals['Sum_to_one']
-                                #        print("\tObjective function new matching: ", M_obj, " (was ", pricing_gurobi.PoolObjVal + constant, ").")
-
                                 if print_out:  
                                     if t == 0:
                                         # Weirdly, the poolobjval does not take into account the constant value, 
@@ -1054,13 +1029,7 @@ class ModelColumnGen:
                             #if self.iterations == 10:
                             #    optimal = True
                             #    print("Process terminated after ", self.iterations, " iterations.")
-                            self.iterations = self.iterations + 1                
-
-                            # other problem to generate matchings
-                            # The following function minimizes the average rank over all matchings with negative reduced cost.
-                            self.pricingMinRank(stab_constr, solver, print_log, time_limit, 20, gap_solutionpool_pricing, MIPGap, bool_ColumnGen, bool_supercolumn, print_out, pricing_obj, starting_time, solver_function)                        
                             
-    
                         else:
                             optimal = True
                             current_time = time.monotonic()
@@ -1206,6 +1175,8 @@ class ModelColumnGen:
         if print_out:
             print("\n\n***************************\nFind matchings negative reduced cost with low rank\n***************************\n\n")
             #print(pricing_obj)
+
+            print("\n\nATTENTION: dual modifier added to objective function!\n\n")
         
         # Add constraint to enforce that reduced cost is negative (or objective pricing positive)
         self.pricing += (pricing_obj >= 0, "PricingObjConstr") 
@@ -1214,7 +1185,10 @@ class ModelColumnGen:
         # Change objective function to minimize rank
         new_obj = LpAffineExpression()
         for (i,j) in self.PAIRS:
-            new_obj += self.M_pricing[i,j]*(self.MyData.rank_pref[i,j]+ 1) / self.MyData.n_stud # + 1 because the indexing starts from zero
+            name_constr = "FOSD_" +  str(self.MyData.ID_stud[i]) + "_" + str(j)
+            dual_value=self.master.constraints[name_constr].pi
+        
+            new_obj += self.M_pricing[i,j]*(self.MyData.rank_pref[i,j]+ 1 - dual_value/self.max_dual) / self.MyData.n_stud # + 1 because the indexing starts from zero
 
         
         
