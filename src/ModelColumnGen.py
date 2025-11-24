@@ -874,7 +874,7 @@ class ModelColumnGen:
 
                         # other problem to generate matchings
                         # The following function minimizes the average rank over all matchings with negative reduced cost.
-                        self.pricingMinRank(stab_constr, solver, print_log, time_limit, 20, gap_solutionpool_pricing, MIPGap, bool_ColumnGen, bool_supercolumn, print_out, pricing_obj, starting_time, solver_function)                        
+                        self.pricingMinRank(stab_constr, solver, print_log, time_limit, 400, gap_solutionpool_pricing, MIPGap, bool_ColumnGen, bool_supercolumn, print_out, pricing_obj, starting_time, solver_function)                        
                         
  
                     else:

@@ -301,7 +301,7 @@ def SIC_EE(N, A, Q, allocation, pro_off, print_out = False):
         best = best_substitudes(pro)
         graph, soe = construct_digraph(all, best)
         obj = DFS(graph)
-        if True:
+        if print_out:
             print(('pro_off    :', pro_off))
             print(('application:', pro))
             print(('best-subs  :', best))
