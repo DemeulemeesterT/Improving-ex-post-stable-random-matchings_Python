@@ -1163,7 +1163,34 @@ class ModelColumnGen:
         # Change back to maximization
         self.pricing.sense = pl.LpMaximize
 
+    def print_dual_values(self):
+        # Get dual variables
+        duals = {}
+        
+        duals["Sum_to_one"] = self.master.constraints["Sum_to_one"].pi
 
+        for i in self.STUD:
+            for j in range(len(self.MyData.pref[i])):
+                school_name = self.MyData.pref_index[i][j]
+                name_duals = "Mu_" +  str(self.MyData.ID_stud[i]) + "_" + str(school_name)
+                name_constr = "FOSD_" +  str(self.MyData.ID_stud[i]) + "_" + str(school_name)
+                    
+                duals[name_duals]=self.master.constraints[name_constr].pi
+                
+                if abs(duals[name_duals] < 0.00001): # Get rid of small numerical inaccuracies
+                    duals[name_duals] = 0
+
+                
+                if duals[name_duals] > 0.00001:
+                    print("Dual ", name_duals, ":", duals[name_duals])  
+
+            
+        constant = 0
+        constant += duals['Sum_to_one']
+
+        print("Constant term", constant)
+
+        
 
     def get_pricing_objective_of_matching(self, M:np.ndarray, print_out:bool):
         pricing_obj_value = 0
@@ -1180,9 +1207,14 @@ class ModelColumnGen:
                 name_constr = "FOSD_" +  str(self.MyData.ID_stud[i]) + "_" + str(school_name)
                     
                 duals[name_duals]=self.master.constraints[name_constr].pi
+                
+                if abs(duals[name_duals] < 0.00001): # Get rid of small numerical inaccuracies
+                    duals[name_duals] = 0
+
                 if print_out:
-                    if abs(duals[name_duals] < 0.00001): # Get rid of small numerical inaccuracies
-                        duals[name_duals] = 0
+                    if duals[name_duals] > 0.00001:
+                        print("Dual ", name_duals, ":", duals[name_duals])  
+
                 
             
         # Modify objective function pricing problem
