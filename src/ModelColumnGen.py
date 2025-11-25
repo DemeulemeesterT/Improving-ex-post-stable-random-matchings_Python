@@ -1,5 +1,6 @@
 from .Assignment import *
-from.Assignment import find_identical_students_from_matrix
+from .Assignment import find_identical_students_from_matrix
+from .Assignment import stability_test_single_matching
 from .SICs import *
 
 # Install necessary packages before running the script:
@@ -334,7 +335,7 @@ class ModelColumnGen:
 
 
         
-    def Solve(self, stab_constr: str, solver: str, print_log: str, time_limit: int, n_sol_pricing: int, gap_solutionpool_pricing: float, MIPGap: float, bool_ColumnGen: bool, bool_supercolumn: bool, print_out: bool):
+    def Solve(self, stab_constr: str, solver: str, print_log: str, time_limit: int, n_sol_pricing: int, n_sol_pricingMinRank: int, gap_solutionpool_pricing: float, MIPGap: float, bool_ColumnGen: bool, bool_supercolumn: bool, print_out: bool):
         """
         Solves the formulation using column generation.
         Returns an instance from the Assignment class.
@@ -350,6 +351,7 @@ class ModelColumnGen:
             print_log: print output of solver on screen?
             time_limit: in s
             n_sol_pricing: number of solutions returned by pricing problem
+            n_sol_pricingMinRank: number of solutions returned by the pricing problem that minimizes the average rank
             gap_solutionpool_pricing: optimality gap used for the solutions included in the solution pool in the pricing problem
             MIPGap: gap for pricing problem
             print_out (bool): boolean that controls which output is printed.
@@ -360,6 +362,7 @@ class ModelColumnGen:
                 and remove it as soon as a feasible solution can be found where the weight of this 'matching' is zero.
         """
         self.bool_ColumnGen = bool_ColumnGen
+        self.stab_constr = stab_constr
         
         # Compute average rank of current assignment
         self.avg_rank_DA = 0
@@ -559,6 +562,8 @@ class ModelColumnGen:
                         #if print_out:
                         #    print(name_duals, duals[name_duals])
                                         #for m in self.N_MATCH:
+                if self.max_dual == 0:
+                    self.max_dual = 0.001 # Later, we divide by this value
                 #    name_GE = 'GE0_' + str(m)
                 #    duals[name_GE] = self.master.constraints[name_GE].pi
                 #if print_out:
@@ -808,7 +813,20 @@ class ModelColumnGen:
                             #    print(found_M)
                             #self.master.writeLP("TestColumnFormulation.lp")
                         
-                            
+                            # Test stability of matching
+                            #is_stable = stability_test_single_matching(self.MyData, found_M, print_out)
+                            #if not is_stable:
+                            #    # If not stable, print values
+                            #    if self.stab_constr == "CUTOFF":
+                            #        if print_out:
+                            #            print("Matching found by pricing is not stable! Cutoffs:")
+                            #        for i in self.SCHOOLS:
+                            #            if print_out:
+                            #                print("Cutoff school", i, ":", self.t[i].varValue)
+                            #        for i in self.SCHOOLS:
+                            #            if print_out:
+                            #                print("Capacity filled school", i, ":", self.f[i].varValue)
+
                             
                             # Exclude this matching from being find by the pricing problem in the future.
                             self.pricing += lpSum([self.M_pricing[i,j] * found_M[i][j] for (i,j) in self.PAIRS]) <= lpSum([found_M[i][j] for (i,j) in self.PAIRS]) - 1, f"EXCL_M_{self.nr_matchings-1}"
@@ -874,7 +892,7 @@ class ModelColumnGen:
 
                         # other problem to generate matchings
                         # The following function minimizes the average rank over all matchings with negative reduced cost.
-                        self.pricingMinRank(stab_constr, solver, print_log, time_limit, 400, gap_solutionpool_pricing, MIPGap, bool_ColumnGen, bool_supercolumn, print_out, pricing_obj, starting_time, solver_function)                        
+                        self.pricingMinRank(stab_constr, solver, print_log, time_limit, n_sol_pricingMinRank, gap_solutionpool_pricing, MIPGap, bool_ColumnGen, bool_supercolumn, print_out, pricing_obj, starting_time, solver_function)                        
                         
  
                     else:
@@ -1034,7 +1052,13 @@ class ModelColumnGen:
                             optimal = True
                             current_time = time.monotonic()
                             self.time_columnGen = current_time - starting_time
-                            return self.generate_solution_report(print_out)     
+                            return self.generate_solution_report(print_out) 
+                    else:
+                        # Even with tighter gap, the pricing problem is still infeasible.
+                        optimal = True
+                        current_time = time.monotonic()
+                        self.time_columnGen = current_time - starting_time
+                        return self.generate_solution_report(print_out)     
             
             
 
@@ -1309,6 +1333,22 @@ class ModelColumnGen:
                     self.N_MATCH = range(self.nr_matchings)
                     self.add_matching(found_M, len(self.w), print_out)
                     #self.master.writeLP("TestColumnFormulation.lp")
+
+                    # Test stability of matching
+                    #is_stable = stability_test_single_matching(self.MyData, found_M, print_out)
+                    #if not is_stable:
+                    #    print(found_M)
+                    #    # If not stable, print values
+                    #    if self.stab_constr == "CUTOFF":
+                    #        if print_out:
+                    #            print("Matching found by pricing is not stable! Cutoffs:")
+                    #        for i in self.SCHOOLS:
+                    #            if print_out:
+                    #                print("Cutoff school", i, ":", self.t[i].varValue)
+                    #        for i in self.SCHOOLS:
+                    #            if print_out:
+                    #                print("Capacity filled school", i, ":", self.f[i].varValue)
+                    #    raise Exception("Matching found by pricing problem is not stable!")
                 
                     
                     

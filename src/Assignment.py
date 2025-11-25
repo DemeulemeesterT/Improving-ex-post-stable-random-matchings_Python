@@ -310,19 +310,24 @@ class Assignment:
         counter = 0
         for m in self.M_list:
             for i in range(self.MyData.n_stud):
+                matched_school = -1
                 for j in range(self.MyData.n_schools):
-                    if self.M_list[counter][i][j] == 1:
+                    if abs(self.M_list[counter][i][j] -1) < 0.00001:
                         matched_school = j
+                        pref_rank_matched_school = self.MyData.rank_pref[i][matched_school]
+                if matched_school == -1:
+                    pref_rank_matched_school = self.MyData.n_schools + 1
+
                 
                 # Check whether student i prefers school j to her assigned schools
                 for j in range(len(self.MyData.pref[i])):
                     test_school = self.MyData.pref_index[i][j]
 
                     # Check whether student i prefers school j to her assigned schools
-                    if self.MyData.rank_pref[i][test_school] < self.MyData.rank_pref[i][matched_school]:
+                    if self.MyData.rank_pref[i][test_school] < pref_rank_matched_school:
                         # Check whether school j prefers student i to some assigned student
                         for k in range(self.MyData.n_stud):
-                            if self.M_list[counter][k][test_school] == 1:
+                            if abs(self.M_list[counter][k][test_school] - 1) < 0.00001 :
                                 assigned_student = k
                         
                                 if self.MyData.rank_prior[test_school][i] < self.MyData.rank_prior[test_school][assigned_student]:
@@ -333,8 +338,8 @@ class Assignment:
                         # Also add check that capacity of more preferred schools are not filled
                         capacity_filled = 0
                         for k in range(self.MyData.n_stud):
-                            if self.M_list[counter][k][test_school] == 1:
-                                capacity_filled += 1
+                            if abs(self.M_list[counter][k][test_school] - 1) < 0.00001:
+                                capacity_filled = capacity_filled + 1
                         
                         if capacity_filled < self.MyData.cap[test_school]:
                             unstable_pairs.append((i, test_school, m))
@@ -348,6 +353,60 @@ class Assignment:
                 print("The assignment only contains weakly stable matchings.")
             else:
                 print(f"The assignment contains weakly unstable matchings! ")
+
+
+def stability_test_single_matching(MyData: Data, M:np.ndarray, print_out: bool):
+    """
+    Tests whether given matching is weakly stable 
+    """
+    
+    unstable_pairs = []
+
+    for i in range(MyData.n_stud):
+        matched_school = -1
+        for j in range(MyData.n_schools):
+            if abs(M[i][j] - 1) < 0.00001:
+                matched_school = j
+                pref_rank_matched_school = MyData.rank_pref[i][matched_school]
+        if matched_school == -1:
+            pref_rank_matched_school = MyData.n_schools + 1
+
+        
+        # Check whether student i prefers school j to her assigned schools
+        for j in range(len(MyData.pref[i])):
+            test_school = MyData.pref_index[i][j]
+
+            # Check whether student i prefers school j to her assigned schools
+            if MyData.rank_pref[i][test_school] < pref_rank_matched_school:
+                # Check whether school j prefers student i to some assigned student
+                for k in range(MyData.n_stud):
+                    if abs(M[k][test_school] - 1) < 0.00001 :
+                        assigned_student = k
+                
+                        if MyData.rank_prior[test_school][i] < MyData.rank_prior[test_school][assigned_student]:
+                            unstable_pairs.append((i, test_school))
+                            if print_out:
+                                print(f"Unstable pair: Student {i} and School {test_school}.\nM({i},{matched_school}) = 1, M({assigned_student}, {test_school}) = 1")
+    
+                # Also add check that capacity of more preferred schools are not filled
+                capacity_filled = 0
+                for k in range(MyData.n_stud):
+                    if abs(M[k][test_school] - 1) < 0.00001:
+                        capacity_filled = capacity_filled + 1
+                
+                if capacity_filled < MyData.cap[test_school]:
+                    unstable_pairs.append((i, test_school))
+                    if print_out:
+                        print(f"Unstable pair due to unfilled capacity: Student {i} and School {test_school}.\nM({i},{matched_school}) = 1, Capacity filled: {capacity_filled}, Capacity: {MyData.cap[test_school]}")
+
+
+    if print_out:
+        if len(unstable_pairs) == 0:
+            print("The matching is weakly stable.")
+            return True
+        else:
+            print(f"The matching is NOT weakly stable matchings!")
+            return False
 
 
 # Same function, but just takes a matrix with assignment probabilities as an input
