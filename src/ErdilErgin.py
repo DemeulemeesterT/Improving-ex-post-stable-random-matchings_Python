@@ -444,29 +444,40 @@ def improve_allocations(N, A, allocation, proposals, soe, cycle, print_out = Fal
         rank = A[school2][student]
         proposals[school2][rank].remove(student) # Removes student from their newly assigned school in proposals
 
+        if len(proposals[school2][rank]) == 0:
+            proposals[school2].pop(rank)
+
         ####### MODIFICATION IN CODE ERDIL & ERGIN ######
         # IMPORTANT: Also remove the student from all schools they wanted that are more preferred than their old school,
         # but less preferred than their new school
 
-        print('\nCareful, I modified code Erdil & Ergin!\n')
-
-        pref_index_old_school = N[student][school1]
-        pref_index_new_school = N[student][school2]
+        pref_index_old_school = N[student].index(school1)
+        pref_index_new_school = N[student].index(school2)
 
         if print_out:
             print('pref_index_old_school', pref_index_old_school)
             print('pref_index_new_school', pref_index_new_school)
 
-        for i in range(pref_index_new_school, pref_index_old_school): # '+1' because we already removed the student from the new school
+        for i in range(pref_index_new_school + 1, pref_index_old_school): # '+1' because we already removed the student from the new school
+
             school3 = N[student][i]
             rank = A[school3][student]
+            if print_out:
+                print("Rank student", student, "at school", school3, ":", rank)
+                print("Proposals school", school3, ":", proposals[school3])
+                print("Proposals school", school3, ":", proposals[school3][rank])
+                print("student", student)
+                print("Proposals", proposals)
+                
             proposals[school3][rank].remove(student)
+
+            if len(proposals[school3][rank]) == 0:
+                proposals[school3].pop(rank)
 
         # END MODIFICATIONS
         ###################
 
-        if len(proposals[school2][rank]) == 0:
-            proposals[school2].pop(rank)
+        
         
     for index in range(len(cycle)-1):
         move(cycle[index], cycle[index+1])

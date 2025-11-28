@@ -22,12 +22,8 @@ def SIC_all_matchings(MyData: Data, A: Assignment, print_out = False):
         # Weight of this matching in the assignment:
         w_original = A.w_set[M]
 
-        if print_out:
-            print("\n Original matching", counter)
-            print(np.array(M))
-
         # Find SICs
-        M_out = SIC(MyData, M, True)
+        M_out = SIC(MyData, M, False)
         
 
         M_set.add(tuple(map(tuple,M_out))) # This is needed because numpy arrays cannot be used as keys in a dictionary

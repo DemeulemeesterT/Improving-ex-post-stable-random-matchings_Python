@@ -320,7 +320,6 @@ class Assignment:
         # Go through all matchings
         counter = 0
         for m in self.M_list:
-            print(np.array(m))
             for i in range(self.MyData.n_stud):
                 matched_school = -1
                 for j in range(self.MyData.n_schools):
@@ -330,8 +329,6 @@ class Assignment:
                 if matched_school == -1:
                     pref_rank_matched_school = self.MyData.n_schools + 1
 
-                
-                print("M(",i,",",matched_school,")=1")
 
                 
                 # Check whether student i prefers school j to her assigned schools
