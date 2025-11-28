@@ -54,7 +54,7 @@ def SimulationCG(COMPARE_SOLUTIONS: list, n_students_schools: list, alpha: list,
         
     # Create csv file
     output_file = 'Simulation Results/SIM_' + now + '.csv'
-    headers = ['n_stud', 'n_schools', 'alpha', 'beta', 'seed', 'time_limit', '#_sol_methods', 'avg_rank_DA', 'avg_rank_EE', 'avg_rank_EADA']
+    headers = ['n_stud', 'n_schools', 'alpha', 'beta', 'seed', 'time_limit', '#_sol_methods', 'avg_rank_DA', 'avg_rank_EE', 'avg_rank_EADA', 'n_assigned_DA', 'n_assigned_EE', 'n_assigned_EADA']
     counter = 1
     for i in COMPARE_SOLUTIONS:
         label_name = f'sol_{counter}_label'
@@ -65,6 +65,8 @@ def SimulationCG(COMPARE_SOLUTIONS: list, n_students_schools: list, alpha: list,
         label_name = f'{counter}_avg_rank_result'
         headers.append(label_name)
         label_name = f'{counter}_avg_rank_heur'
+        headers.append(label_name)
+        label_name = f'{counter}_n_assigned'
         headers.append(label_name)
         label_name = f'{counter}_bool_CG'
         headers.append(label_name)
@@ -77,6 +79,8 @@ def SimulationCG(COMPARE_SOLUTIONS: list, n_students_schools: list, alpha: list,
         label_name = f'{counter}_n_iter'
         headers.append(label_name)
         label_name = f'{counter}_n_match'
+        headers.append(label_name)
+        label_name = f'{counter}_n_match_support'
         headers.append(label_name)
         counter = counter + 1
 
@@ -183,11 +187,14 @@ def SimulationCG(COMPARE_SOLUTIONS: list, n_students_schools: list, alpha: list,
 
             row_data['avg_rank_DA'] = A.statistics()
             row_data['avg_rank_EE'] = A_SIC.statistics()
+            row_data['n_assigned_DA'] = A.compute_n_assigned_students()
+            row_data['n_assigned_EE'] = A_SIC.compute_n_assigned_students()
 
             # Run EADA if necessary:
             if ("SD_UPON_EADA" in sol_list) or ("SD_UPON_EADA_SAMPLE" in sol_list):
                 A_EADAM = EADAM_STB(MyData, n_match, seed_vector[i], print_intermediate)
                 row_data['avg_rank_EADA'] = A_EADAM.statistics()
+                row_data['n_assigned_EADA'] = A_EADAM.compute_n_assigned_students()
             else:
                 A_EADAM = A # Dummy assignment to avoid errors later on
 
@@ -287,7 +294,9 @@ def add_line(row_data: dict, S: SolutionReport, s, sol_list: list, counter: int,
     row_data[f'{counter}_time_lim_exceeded'] = S.time_limit_exceeded
     row_data[f'{counter}_optimal'] = S.optimal  
     row_data[f'{counter}_n_iter'] = S.iter      
-    row_data[f'{counter}_n_match'] = S.n_match  
+    row_data[f'{counter}_n_match'] = S.n_match
+    row_data[f'{counter}_n_match'] = S.n_match_support
+    row_data[f'{counter}_n_assigned'] = S.n_students_assigned
 
     comp_DA = S.A.compare(A.assignment)
     comp_EE = S.A.compare(A_SIC.assignment)

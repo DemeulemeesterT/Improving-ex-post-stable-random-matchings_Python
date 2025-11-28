@@ -199,6 +199,17 @@ class Assignment:
             print(f"\nAverage rank: {avg_rank}.\n")
 
         return avg_rank
+    
+    def compute_n_assigned_students(self, print_out = False):
+        assigned_prob = 0
+        for i in range(self.MyData.n_stud):
+            for j in range(self.MyData.n_schools):
+                assigned_prob += self.assignment[i][j]
+        
+        if print_out:
+            print(f"Expected number of assigned students: {assigned_prob} out of {self.MyData.n_stud}.")
+
+        return assigned_prob
 
     # Save the assignment to the correct subdirectory
     def export_assignment(self):

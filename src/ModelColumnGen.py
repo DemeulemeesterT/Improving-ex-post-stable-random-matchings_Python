@@ -40,10 +40,12 @@ class SolutionReport:
     A_SIC: Assignment   # Contains warm start solution (in general, SICs by Erdil & Ergin)
     A_DA_prob: np.ndarray # Assignment probabilities to sd-dominate (in general, DA)
     avg_ranks: dict     # Contains average ranks of several solutions along the process
+    n_students_assigned: float # Number of students assigned in the final solution
     obj_master: list    # Objective values of master in iterations
     obj_pricing: list   # Objective values of pricing in iterations
     n_iter: int         # Number of iterations
     n_match: int        # Number of matchings
+    n_match_support: int # Number of matchings in support (positive weight) of final solution
     time_limit_exceeded: bool # Whether time limit is exceeded
     time_limit: int     # Time limit
     optimal: bool       # Optimality guaranteed?
@@ -1482,7 +1484,7 @@ class ModelColumnGen:
         A_SIC_M_list =np.array(list(A_SIC_extra.M_set))
 
         # Add matchings in A_SIC_extra to model
-        for m in tqdm(range(len(A_SIC_M_list)), desc='Master: add decision variables', unit='var', disable= not True):
+        for m in tqdm(range(len(A_SIC_M_list)), desc='Master: add decision variables', unit='var', disable= not print_out):
             #print(self.M[m])
             self.M_list.append(A_SIC_M_list[m])
             self.nr_matchings =self.nr_matchings + 1
@@ -1493,6 +1495,13 @@ class ModelColumnGen:
     def generate_solution_report(self, print_out = False):
         # Store everything in a solution report
         S = SolutionReport()
+
+        # Check if supercolumn is still in model. If yes, check if it has weight zero. If not, the problem is infeasible
+        if self.supercolumn_in_model == True:
+            if self.w[self.index_super_column].varValue > 0.00001:
+                if print_out:
+                    print("Supercolumn has positive weight in final solution, master problem is infeasible!")
+                self.master.status = -1 # Infeasible
 
         if self.master.status == -1: # If the master problem is infeasible (e.g., because we can't sd-dominate EADA)
             S.optimal = False
@@ -1574,23 +1583,30 @@ class ModelColumnGen:
             self.Xassignment.assignment = np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools))
 
             # Store decomposition
-            self.Xdecomp = [] # Matchings in the found decomposition
-            self.Xdecomp_coeff = [] # Weights of these matchings
+            #self.Xdecomp = [] # Matchings in the found decomposition
+            #self.Xdecomp_coeff = [] # Weights of these matchings
 
             #if print_out:
                 #print('self.N_MATCH', self.N_MATCH)
                 #print('self.w', len(self.w))
                 #print('self.M_list', len(self.M_list))
+            n_match_support = 0
             for l in self.N_MATCH:
-                self.Xdecomp.append(np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools)))
-                self.Xdecomp_coeff.append(self.w[l].varValue)
+                #self.Xdecomp.append(np.zeros(shape=(self.MyData.n_stud, self.MyData.n_schools)))
+                #self.Xdecomp_coeff.append(self.w[l].varValue)
                 for (i,j) in self.PAIRS:
-                    self.Xdecomp[-1][i,j] = self.M_list[l][i][j]
+                    #self.Xdecomp[-1][i,j] = self.M_list[l][i][j]
                     self.Xassignment.assignment[i,j] += self.w[l].varValue * self.M_list[l][i][j]
+                if self.w[l].varValue > 0.00001:
+                    n_match_support += 1
+                
             
-        S.Xdecomp = self.Xdecomp
-        S.Xdecomp_coeff = self.Xdecomp_coeff
+        #S.Xdecomp = self.Xdecomp
+        #S.Xdecomp_coeff = self.Xdecomp_coeff
         S.A = copy.deepcopy(self.Xassignment)
+
+        S.n_students_assigned = S.A.compute_n_assigned_students()
+        S.n_match_support = n_match_support
 
         S.A_SIC = copy.deepcopy(self.p)
         S.A_DA_prob = copy.deepcopy(self.p_DA)
