@@ -51,7 +51,7 @@ def transform_prior_us_to_EE(MyData: Data, print_out = False):
     for j in range(MyData.n_schools):
         student_to_group = {}
     
-        for group_index, group in enumerate(MyData.prior_index[j], 1):
+        for group_index, group in enumerate(MyData.prior_index[j]):
             if isinstance(group, tuple):
                 # Handle tuple of students - all belong to same priority group
                 for student in group:
@@ -288,7 +288,10 @@ def SIC_EE(N, A, Q, allocation, pro_off, print_out = False):
 
     """
     all = deepcopy(allocation)
-    pro = construct_proposals(N, A, pro_off)
+    pro = construct_proposals(N, A, pro_off, print_out) # Dictionaries with for each school, the students who prefer that school to their current school, together with their rank.
+
+    if print_out:
+        print("Pro", pro)
 
     improved_students = set([])
     iterations = 0
@@ -298,19 +301,34 @@ def SIC_EE(N, A, Q, allocation, pro_off, print_out = False):
     while(True):
         if print_out:
             print(('allocation :', all))
-        best = best_substitudes(pro)
-        graph, soe = construct_digraph(all, best)
+
+
+        ############
+        # ERROR ####
+        ############
+        # Always computes again from the initial matching! 
+        # Like this, a student might get first better off, and then again worse off, and this may cause instability.
+
+        # Also, after executing the cycle, the proposals are wrong: some students still propose to things that are now less preferred!  
+
+        best = best_substitudes(pro) # Retain set of students with best rank among proposers, for each school
+        graph, soe = construct_digraph(all, best) # Make graph with one node for each school
         obj = DFS(graph)
         if print_out:
-            print(('pro_off    :', pro_off))
-            print(('application:', pro))
-            print(('best-subs  :', best))
+            print(('pro_off    :', pro_off)) # Preferences of assigned students
+            print(('application:', pro)) # Proposing students and their ranks at each school
+            print(('best-subs  :', best)) # Set of students who propose with highest rank for each school (D_j in EE paper)
             print(('graph      :', graph))
             print(('soe        :', soe))
-        obj.DFS()
+        obj.DFS() #Find cycle
+        if print_out:
+            print(('Cycle', obj.cycle))
         if obj.cycle is None:
             break
-        improve_allocations(A, all, pro, soe, obj.cycle)
+        improve_allocations(N, A, all, pro, soe, obj.cycle, print_out) # Careful, these variables are changed by this function
+        if print_out:
+            print(('pro_off after cycle:', pro_off)) # Preferences of assigned students
+            print(('application after cycle:', pro))
 
         iterations += 1
         total_moves += calculate_moves(N, soe, obj.cycle)
@@ -351,10 +369,10 @@ def best_substitudes(proposals):
             bests.append(set([]))
             continue
         ranks.sort()
-        bests.append(pro_school[ranks[0]])
+        bests.append(pro_school[ranks[0]]) # Add only students who are ranked highest and are proposing there
     return bests
 
-def construct_digraph(from_set, to_set):
+def construct_digraph(from_set, to_set): # from_set = allocation, to_set is D_j, i.e., set of highest ranked proposing students at a school
     V = list(range(len(from_set)))
     
     graph = []
@@ -363,13 +381,13 @@ def construct_digraph(from_set, to_set):
     students_on_the_edge = {}
 
     for v in V:
-        fs = from_set[v]
+        fs = from_set[v] # fs is assigned students in school v
         for student in fs:
             for w in V :
-                ts = to_set[w]
+                ts = to_set[w] # ts are students who are in highest ranked group among proposers at school w
                 if student in ts:
-                    graph[v].add(w)
-                    students_on_the_edge[(v,w)] = student
+                    graph[v].add(w) # edge between school v and w is there is a student assigned to v who is in D_w
+                    students_on_the_edge[(v,w)] = student # with student 'student' preferring to be assigned to v instead of w
                     
     return graph, students_on_the_edge
 
@@ -414,7 +432,7 @@ class DFS:
         self.color[u] = 2
 
 
-def improve_allocations(A, allocation, proposals, soe, cycle, print_out = False):
+def improve_allocations(N, A, allocation, proposals, soe, cycle, print_out = False):
     if cycle is None or len(cycle) < 2 :
         return
     def move(school1, school2):
@@ -424,7 +442,29 @@ def improve_allocations(A, allocation, proposals, soe, cycle, print_out = False)
         allocation[school1].remove(student)
         allocation[school2].add(student)
         rank = A[school2][student]
-        proposals[school2][rank].remove(student)
+        proposals[school2][rank].remove(student) # Removes student from their newly assigned school in proposals
+
+        ####### MODIFICATION IN CODE ERDIL & ERGIN ######
+        # IMPORTANT: Also remove the student from all schools they wanted that are more preferred than their old school,
+        # but less preferred than their new school
+
+        print('\nCareful, I modified code Erdil & Ergin!\n')
+
+        pref_index_old_school = N[student][school1]
+        pref_index_new_school = N[student][school2]
+
+        if print_out:
+            print('pref_index_old_school', pref_index_old_school)
+            print('pref_index_new_school', pref_index_new_school)
+
+        for i in range(pref_index_new_school, pref_index_old_school): # '+1' because we already removed the student from the new school
+            school3 = N[student][i]
+            rank = A[school3][student]
+            proposals[school3][rank].remove(student)
+
+        # END MODIFICATIONS
+        ###################
+
         if len(proposals[school2][rank]) == 0:
             proposals[school2].pop(rank)
         

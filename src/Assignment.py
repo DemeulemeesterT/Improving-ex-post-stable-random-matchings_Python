@@ -320,6 +320,7 @@ class Assignment:
         # Go through all matchings
         counter = 0
         for m in self.M_list:
+            print(np.array(m))
             for i in range(self.MyData.n_stud):
                 matched_school = -1
                 for j in range(self.MyData.n_schools):
@@ -328,6 +329,9 @@ class Assignment:
                         pref_rank_matched_school = self.MyData.rank_pref[i][matched_school]
                 if matched_school == -1:
                     pref_rank_matched_school = self.MyData.n_schools + 1
+
+                
+                print("M(",i,",",matched_school,")=1")
 
                 
                 # Check whether student i prefers school j to her assigned schools
@@ -353,9 +357,10 @@ class Assignment:
                                 capacity_filled = capacity_filled + 1
                         
                         if capacity_filled < self.MyData.cap[test_school]:
-                            unstable_pairs.append((i, test_school, m))
-                            if print_out:
-                                print(f"Matching {counter}: Unstable pair due to unfilled capacity: Student {i} and School {test_school}.\nM({i},{matched_school}) = 1, Capacity filled: {capacity_filled}, Capacity: {self.MyData.cap[test_school]}")
+                            if not np.isnan(self.MyData.rank_prior[test_school][i]):
+                                unstable_pairs.append((i, test_school, m))
+                                if print_out:
+                                    print(f"Matching {counter}: Unstable pair due to unfilled capacity: Student {i} and School {test_school}.\nM({i},{matched_school}) = 1, Capacity filled: {capacity_filled}, Capacity: {self.MyData.cap[test_school]}")
 
 
             counter += 1    
@@ -406,9 +411,10 @@ def stability_test_single_matching(MyData: Data, M:np.ndarray, print_out: bool):
                         capacity_filled = capacity_filled + 1
                 
                 if capacity_filled < MyData.cap[test_school]:
-                    unstable_pairs.append((i, test_school))
-                    if print_out:
-                        print(f"Unstable pair due to unfilled capacity: Student {i} and School {test_school}.\nM({i},{matched_school}) = 1, Capacity filled: {capacity_filled}, Capacity: {MyData.cap[test_school]}")
+                    if not np.isnan(MyData.rank_prior[test_school][i]):
+                        unstable_pairs.append((i, test_school))
+                        if print_out:
+                            print(f"Unstable pair due to unfilled capacity: Student {i} and School {test_school}.\nM({i},{matched_school}) = 1, Capacity filled: {capacity_filled}, Capacity: {MyData.cap[test_school]}")
 
 
     if print_out:

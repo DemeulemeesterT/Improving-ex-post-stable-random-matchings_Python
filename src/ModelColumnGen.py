@@ -423,8 +423,8 @@ class ModelColumnGen:
 
         starting_time = time.monotonic()
 
-        supercolumn_in_model = False
-        index_super_column = -1 # Updated in loop below if supercolumn added
+        self.supercolumn_in_model = False
+        self.index_super_column = -1 # Updated in loop below if supercolumn added
         remove_supercolumn = False # Used to decide when to remove
 
         # Keep track of whether the supercolumn is in the master problem
@@ -489,7 +489,7 @@ class ModelColumnGen:
                             if print_out:
                                 print("\n Supercolumn added to model to enforce feasibility.\n")
                             M_super = np.ones(shape=(self.MyData.n_stud, self.MyData.n_schools))
-                            index_super_column = len(self.w)
+                            self.index_super_column = len(self.w)
 
                             
                             self.M_list.append(M_super)
@@ -497,11 +497,11 @@ class ModelColumnGen:
                             self.N_MATCH = range(self.nr_matchings)
                             self.add_matching(M_super, len(self.w), False)
    
-                            supercolumn_in_model = True
+                            self.supercolumn_in_model = True
 
                             # Modify objective coefficient:
                             obj_coeff = self.MyData.n_stud * self.MyData.n_stud * 10000
-                            self.master.setObjective(self.master.objective+obj_coeff*self.w[index_super_column])
+                            self.master.setObjective(self.master.objective+obj_coeff*self.w[self.index_super_column])
 
                             #self.master.writeLP("TestColumnFormulation.lp")
 
@@ -656,10 +656,10 @@ class ModelColumnGen:
                 # Intermezzo: now that we have the dual variables, we can check whether the supercolumn can be removed
                     # Remove if it had a weight of zero in master problem
                 #print("\n\n Supercolumn check! In model?", supercolumn_in_model)
-                if supercolumn_in_model == True:
+                if self.supercolumn_in_model == True:
                     #print("index supercolumn: ", index_super_column)
                     #print("value supercolumn: ", self.w[index_super_column].varValue)
-                    if self.w[index_super_column].varValue < 0.0001:
+                    if self.w[self.index_super_column].varValue < 0.0001:
                         if print_out:
                             print("\n The supercolumn will be removed from the master problem.\n")
                             # This can only be done when matchings are added to the model
@@ -749,12 +749,12 @@ class ModelColumnGen:
                 elif self.pricing.status != -1:   
                     if obj_pricing_var > 0:
                         # Remove supercolumn if needed:
-                        if supercolumn_in_model == True:
+                        if self.supercolumn_in_model == True:
                             if remove_supercolumn == True:
-                                self.w[index_super_column].upBound = 0
+                                self.w[self.index_super_column].upBound = 0
                                 #self.master.writeLP("TestColumnFormulation2.lp")
 
-                                supercolumn_in_model = False
+                                self.supercolumn_in_model = False
 
 
                         # The solution of the master problem is not optimal over all weakly stable matchings
@@ -957,12 +957,12 @@ class ModelColumnGen:
                     elif self.pricing.status != -1:   
                         if obj_pricing_var > 0:
                             # Remove supercolumn if needed:
-                            if supercolumn_in_model == True:
+                            if self.supercolumn_in_model == True:
                                 if remove_supercolumn == True:
-                                    self.w[index_super_column].upBound = 0
+                                    self.w[self.index_super_column].upBound = 0
                                     #self.master.writeLP("TestColumnFormulation2.lp")
 
-                                    supercolumn_in_model = False
+                                    self.supercolumn_in_model = False
 
 
                             # The solution of the master problem is not optimal over all weakly stable matchings

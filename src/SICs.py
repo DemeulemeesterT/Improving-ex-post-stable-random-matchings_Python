@@ -17,19 +17,27 @@ def SIC_all_matchings(MyData: Data, A: Assignment, print_out = False):
     w_set = {}
 
     # Go through all matchings
+    counter = 0
     for M in tqdm(A.M_set, desc='Compute SICs for matchings', unit = 'matching', disable= not print_out):
         # Weight of this matching in the assignment:
         w_original = A.w_set[M]
 
+        if print_out:
+            print("\n Original matching", counter)
+            print(np.array(M))
+
         # Find SICs
-        M_out = SIC(MyData, M, False)
+        M_out = SIC(MyData, M, True)
+        
 
         M_set.add(tuple(map(tuple,M_out))) # This is needed because numpy arrays cannot be used as keys in a dictionary
         key2 = tuple(map(tuple, M_out))
-        w_set[key2] = w_original
+        w_set[key2] = w_set.get(key2, 0.0) + w_original
     
         # Compute the new assignment
         M_sum = M_sum + M_out * w_original
+
+        counter +=1
 
     # Create a new Assignment object
     label = A.label + "_SIC"
@@ -60,7 +68,13 @@ def SIC(MyData: Data, M: np.ndarray, print_out = False):
                 assigned_pref[i] = k 
                 k = len(MyData.pref_index[i]) # Finish for-loop
 
+    if print_out:
+        print("Assigned pref (before):", assigned_pref)
+
     result = SIC_EE(N, A, Q, M_EE, assigned_pref, print_out)
+
+    if print_out:
+        print("Assigned pref (after):", result['optimal_all'])
     
     """
     Contains:
@@ -73,6 +87,10 @@ def SIC(MyData: Data, M: np.ndarray, print_out = False):
 
 
     M_out = transform_M_EE_to_us(MyData, result['optimal_all'], print_out)
+
+    if print_out:
+        print("Matching after")
+        print(np.array(M_out))
 
     return M_out
 
