@@ -401,12 +401,11 @@ def stability_test_single_matching(MyData: Data, M:np.ndarray, print_out: bool):
 
 
     if print_out:
-        if len(unstable_pairs) == 0:
-            print("The matching is weakly stable.")
-            return True
-        else:
+        if len(unstable_pairs) != 0:
             print(f"The matching is NOT weakly stable matchings!")
             return False
+        else: 
+            return True
 
 
 # Same function, but just takes a matrix with assignment probabilities as an input

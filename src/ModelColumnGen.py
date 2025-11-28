@@ -1140,7 +1140,7 @@ class ModelColumnGen:
                 self.pricing += (self.t[j] >= self.M_pricing[(i,j)] * r_i_j, f"CUTOFF1_{i}_{j}")
 
                 lin = LpAffineExpression()
-                current_school = self.MyData.pref_index[i][j]
+                #current_school = self.MyData.pref_index[i][j]
 
                 # Go through all schools that are weakly more preferred than current school by i
                 for l in self.SCHOOLS:
