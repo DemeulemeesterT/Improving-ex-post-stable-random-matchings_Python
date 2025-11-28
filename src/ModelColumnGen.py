@@ -822,35 +822,35 @@ class ModelColumnGen:
                             self.pricing += lpSum([self.M_pricing[i,j] * found_M[i][j] for (i,j) in self.PAIRS]) <= lpSum([found_M[i][j] for (i,j) in self.PAIRS]) - 1, f"EXCL_M_{self.nr_matchings-1}"
                     
                             # Find SICs
-                            #M_SIC = SIC(self.MyData, found_M, False)
-                            #if not np.array_equal(M_SIC, found_M): # If improvement realized by executing SICs
-                            #    counter_M_improved[t] = 1
-                            #    self.add_matching(M_SIC, len(self.w), print_out)
-                            #    #self.master.writeLP("TestColumnFormulation.lp")
-                            
-                            #    self.M_list.append(M_SIC)
-                            #    self.nr_matchings += 1
+                            M_SIC = SIC(self.MyData, found_M, False)
+                            if not np.array_equal(M_SIC, found_M): # If improvement realized by executing SICs
+                                counter_M_improved[t] += 1
+
+                                self.M_list.append(M_SIC)
+                                self.nr_matchings += 1
+                                self.N_MATCH = range(self.nr_matchings)
+                                self.add_matching(M_SIC, len(self.w), print_out)
+                                #self.master.writeLP("TestColumnFormulation.lp")
                                 
-                            #    # Exclude this matching from being find by the pricing problem in the future.
-                            #    self.pricing += lpSum([self.M_pricing[i,j] * M_SIC[i][j] for (i,j) in self.PAIRS]) <= lpSum([M_SIC[i][j] for (i,j) in self.PAIRS]) - 1, f"EXCL_M_{self.nr_matchings-1}"
+                                # Exclude this matching from being find by the pricing problem in the future.
+                                self.pricing += lpSum([self.M_pricing[i,j] * M_SIC[i][j] for (i,j) in self.PAIRS]) <= lpSum([M_SIC[i][j] for (i,j) in self.PAIRS]) - 1, f"EXCL_M_{self.nr_matchings-1}"
 
-                            #    if print_out:
-                            #        # Compute reduced cost of this new matching:
-                            #        M_obj = 0
-                            #        for i in self.STUD:
-                            #            #print('student ', i)
-                            #            for j in range(len(self.MyData.pref[i])): 
-                            #                school_name = self.MyData.pref_index[i][j]
-                            #                pricing_obj -= self.M_pricing[i,school_name] * (self.MyData.rank_pref[i,school_name]+ 1) / self.MyData.n_stud # + 1 because the indexing starts from zero
-                            #                #print('  school ', school_name, -(self.MyData.rank_pref[i,school_name]+ 1) / self.MyData.n_stud)
-                            #                for k in range(j+1):
-                            #                    pref_school = self.MyData.pref_index[i][k]
-                            #                    name = "Mu_" +  str(self.MyData.ID_stud[i]) + "_" + str(pref_school)
-                            #                    M_obj += M_SIC[i][pref_school] * duals[name]
-                            #                    #print('      school ', pref_school, duals[name])
-
-                            #        M_obj += duals['Sum_to_one']
-                            #        print("\tObjective function new matching: ", M_obj, " (was ", pricing_gurobi.PoolObjVal + constant, ").")
+                                if print_out:
+                                    # Compute reduced cost of this new matching:
+                                    M_obj = 0
+                                    for i in self.STUD:
+                                        #print('student ', i)
+                                        for j in range(len(self.MyData.pref[i])): 
+                                            school_name = self.MyData.pref_index[i][j]
+                                            pricing_obj -= self.M_pricing[i,school_name] * (self.MyData.rank_pref[i,school_name]+ 1) / self.MyData.n_stud # + 1 because the indexing starts from zero
+                                            #print('  school ', school_name, -(self.MyData.rank_pref[i,school_name]+ 1) / self.MyData.n_stud)
+                                            for k in range(j+1):
+                                                pref_school = self.MyData.pref_index[i][k]
+                                                name = "Mu_" +  str(self.MyData.ID_stud[i]) + "_" + str(pref_school)
+                                                M_obj += M_SIC[i][pref_school] * duals[name]
+                                                #print('      school ', pref_school, duals[name])
+                                    M_obj += duals['Sum_to_one']
+                                    print("\tObjective function new matching: ", M_obj, " (was ", pricing_gurobi.PoolObjVal + constant, ").")
 
                             if print_out:  
                                 if t == 0:
