@@ -13,7 +13,7 @@ from src.EADAM import * # EADA algorithm
 
 
 
-def SimulationCG(COMPARE_SOLUTIONS: list, n_students_schools: list, alpha: list, beta: list, n_iterations_simul: int, n_match: int, time_lim: int, seed: int, n_sol_pricing: int, gap_pricing: float, MIPGap: float, bool_ColumnGen: bool, bool_supercolumn: bool, bool_identical_students: bool, print_out = False):
+def SimulationCG(COMPARE_SOLUTIONS: list, n_students_schools: list, alpha: list, beta: list, n_iterations_simul: int, n_match: int, n_sol_extra_sample: int, time_lim: int, seed: int, n_sol_pricing: int, n_sol_pricingMinRank:int, gap_pricing: float, MIPGap: float, bool_ColumnGen: bool, bool_supercolumn: bool, bool_identical_students: bool, print_out = False):
     """
     Will run column generation framework 'n_iterations' times, for the specified parameter values
     Output: an array containing SolutionReport objects
@@ -21,8 +21,13 @@ def SimulationCG(COMPARE_SOLUTIONS: list, n_students_schools: list, alpha: list,
     - COMPARE_SOLUTIONS: a list of strings that contains the solutions we want to compare
     - n_students_schools, alpha, beta: lists containing the corresponding parameter values
     - n_students_schools is a list of pairs of values to evaluate: e,g,. [[100, 2], [200, 4], [400, 8]]
-    - n_sol_pricing: number of solutions returned by pricing problem
+    - n_sol_extra_sample: number of additional weakly stable matchings sampled when evaluating nethods with larger initial sample sizes
+
+    For column generation
+    - n_match: number of solutions returned by pricing problem
+    - n_sol_pricingMinRank: number of solutions returned by the pricing problem that minimizes the average rank
     - gap_pricing: optimality gap used for the solutions included in the solution pool in the pricing problem
+    - MIPGap: gap for pricing problem
     - bool_ColumnGen: if True: perform entire column generation for time_limit period
                       if False: only perform first iteration, and don't build pricing problem
     - bool_supercolumn: boolean to determine whether you want to add an artificial column to the model when the model is infeasible?
@@ -42,7 +47,7 @@ def SimulationCG(COMPARE_SOLUTIONS: list, n_students_schools: list, alpha: list,
     now = time.strftime('%Y-%m-%d_%H%M%S')
 
     # The different possible solutions
-    sol_list = ["SD_UPON_DA", "SD_UPON_EE", "SD_UPON_EADA"]
+    sol_list = ["SD_UPON_DA", "SD_UPON_EE", "SD_UPON_EADA", "SD_UPON_DA_SAMPLE", "SD_UPON_EE_SAMPLE", "SD_UPON_EADA_SAMPLE"]
     for sol in COMPARE_SOLUTIONS:
         if sol not in sol_list:
             raise ValueError(f"Invalid value: '{sol}'. Allowed values are: {sol_list}")   
@@ -91,7 +96,7 @@ def SimulationCG(COMPARE_SOLUTIONS: list, n_students_schools: list, alpha: list,
         label_name = f'{counter}_median_rank_impr_EE'
         headers.append(label_name)
 
-        if "SD_UPON_EADA" in COMPARE_SOLUTIONS:
+        if ("SD_UPON_EADA" in COMPARE_SOLUTIONS) or ("SD_UPON_EADA_SAMPLE" in COMPARE_SOLUTIONS):
             label_name = f'{counter}_n_stud_impr_EADA'
             headers.append(label_name)
             label_name = f'{counter}_avg_rank_impr_EADA'
@@ -108,7 +113,7 @@ def SimulationCG(COMPARE_SOLUTIONS: list, n_students_schools: list, alpha: list,
     label_name = f'median_rank_impr_EE_DA'
     headers.append(label_name)
 
-    if "SD_UPON_EADA" in COMPARE_SOLUTIONS:
+    if ("SD_UPON_EADA" in COMPARE_SOLUTIONS) or ("SD_UPON_EADA_SAMPLE" in COMPARE_SOLUTIONS):
         label_name = f'n_stud_impr_EADA_DA'
         headers.append(label_name)
         label_name = f'avg_rank_impr_EADA_DA'
@@ -180,9 +185,11 @@ def SimulationCG(COMPARE_SOLUTIONS: list, n_students_schools: list, alpha: list,
             row_data['avg_rank_EE'] = A_SIC.statistics()
 
             # Run EADA if necessary:
-            if "SD_UPON_EADA" in sol_list:
+            if ("SD_UPON_EADA" in sol_list) or ("SD_UPON_EADA_SAMPLE" in sol_list):
                 A_EADAM = EADAM_STB(MyData, n_match, seed_vector[i], print_intermediate)
                 row_data['avg_rank_EADA'] = A_EADAM.statistics()
+            else:
+                A_EADAM = A # Dummy assignment to avoid errors later on
 
             counter = 1
             for s in COMPARE_SOLUTIONS:
@@ -190,100 +197,51 @@ def SimulationCG(COMPARE_SOLUTIONS: list, n_students_schools: list, alpha: list,
                     # Solve the formulations
                     # Note that we will use the matchings in 'A_SIC' in the first step of the master problem
                     # And we will sd-dominate the assignment 'A.assignment' (found by DA)
-                    MyModel = ModelColumnGen(MyData, A_SIC, A.assignment, bool_identical_students, print_intermediate)
-                    S = MyModel.Solve("TRAD", "GUROBI", print_log=False, time_limit= time_lim, n_sol_pricing= n_sol_pricing, gap_solutionpool_pricing=gap_pricing, MIPGap=MIPGap, bool_ColumnGen=bool_ColumnGen, print_out=print_intermediate)
+                    MyModel = ModelColumnGen(MyData, A_SIC, A.assignment, bool_identical_students, False, print_intermediate)
+                    S = MyModel.Solve("CUTOFF", "GUROBI", print_log=False, time_limit= time_lim, n_sol_pricing= n_sol_pricing, n_sol_pricingMinRank=n_sol_pricingMinRank, gap_solutionpool_pricing=gap_pricing, MIPGap=MIPGap, bool_ColumnGen=bool_ColumnGen, bool_supercolumn=bool_supercolumn, print_out=print_intermediate)
                     
-                    # Store solution
-                    row_data[f'sol_{counter}_label'] = s
-                    row_data[f'{counter}_avg_rank_result'] = S.avg_ranks['result']
-                    row_data[f'{counter}_avg_rank_heur'] = S.avg_ranks['first_iter']
-                    row_data[f'{counter}_bool_CG'] = bool_ColumnGen
-                    row_data[f'{counter}_time'] = S.time
-                    row_data[f'{counter}_time_lim_exceeded'] = S.time_limit_exceeded
-                    row_data[f'{counter}_optimal'] = S.optimal  
-                    row_data[f'{counter}_n_iter'] = S.iter      
-                    row_data[f'{counter}_n_match'] = S.n_match  
+                    row_data = add_line(row_data=row_data, S=S, s=s, sol_list=sol_list, counter=counter, A=A, A_SIC=A_SIC, A_EADAM=A_EADAM, bool_ColumnGen=bool_ColumnGen)
+                elif s == "SD_UPON_EE":
+                    MyModel = ModelColumnGen(MyData, A_SIC, A_SIC.assignment, bool_identical_students, False, print_intermediate)
+                    S = MyModel.Solve("CUTOFF", "GUROBI", print_log=False, time_limit= time_lim, n_sol_pricing= n_sol_pricing, n_sol_pricingMinRank=n_sol_pricingMinRank, gap_solutionpool_pricing=gap_pricing, MIPGap=MIPGap, bool_ColumnGen=bool_ColumnGen, bool_supercolumn=bool_supercolumn, print_out=print_intermediate)
 
-                    comp_DA = S.A.compare(A.assignment)
-                    comp_EE = S.A.compare(A_SIC.assignment)
-                    if "SD_UPON_EADA" in sol_list:
-                        comp_EADA = S.A.compare(A_EADAM.assignment)
-
-                    row_data[f'{counter}_n_stud_impr_DA'] = comp_DA["n_students_improving"]     
-                    row_data[f'{counter}_avg_rank_impr_DA'] = comp_DA["average_rank_increase"]  
-                    row_data[f'{counter}_median_rank_impr_DA'] = comp_DA["median_rank_improvement"]   
-
-                    row_data[f'{counter}_n_stud_impr_EE'] = comp_EE["n_students_improving"]     
-                    row_data[f'{counter}_avg_rank_impr_EE'] = comp_EE["average_rank_increase"]  
-                    row_data[f'{counter}_median_rank_impr_EE'] = comp_EE["median_rank_improvement"]    
-                    if "SD_UPON_EADA" in sol_list:
-                        row_data[f'{counter}_n_stud_impr_EADA'] = comp_EADA["n_students_improving"]     
-                        row_data[f'{counter}_avg_rank_impr_EADA'] = comp_EADA["average_rank_increase"]  
-                        row_data[f'{counter}_median_rank_impr_EADA'] = comp_EADA["median_rank_improvement"]   
+                    row_data = add_line(row_data=row_data, S=S, s=s, sol_list=sol_list, counter=counter, A=A, A_SIC=A_SIC, A_EADAM=A_EADAM, bool_ColumnGen=bool_ColumnGen)
+ 
+                elif s == "SD_UPON_EADA":
+                    MyModel = ModelColumnGen(MyData, A_SIC, A_EADAM.assignment, bool_identical_students, False,  print_intermediate)
+                    S = MyModel.Solve("CUTOFF", "GUROBI", print_log=False, time_limit= time_lim, n_sol_pricing= n_sol_pricing, n_sol_pricingMinRank=n_sol_pricingMinRank, gap_solutionpool_pricing=gap_pricing, MIPGap=MIPGap, bool_ColumnGen=bool_ColumnGen, bool_supercolumn=bool_supercolumn, print_out=print_intermediate)
+            
+                    row_data = add_line(row_data=row_data, S=S, s=s, sol_list=sol_list, counter=counter, A=A, A_SIC=A_SIC, A_EADAM=A_EADAM, bool_ColumnGen=bool_ColumnGen)
 
                 elif s == "SD_UPON_EE":
-                    MyModel = ModelColumnGen(MyData, A_SIC, A_SIC.assignment, bool_identical_students, print_intermediate)
-                    S = MyModel.Solve("TRAD", "GUROBI", print_log=False, time_limit= time_lim, n_sol_pricing= n_sol_pricing, gap_solutionpool_pricing=gap_pricing, MIPGap=MIPGap, bool_ColumnGen=bool_ColumnGen, print_out=print_intermediate)
+                    MyModel = ModelColumnGen(MyData, A_SIC, A_SIC.assignment, bool_identical_students, False, print_intermediate)
+                    
+                    MyModel.add_n_new_matchings(n_sol_extra_sample, seed_vector[i] + 100, print_out) # +100 to have different seed than initial sampling
+                    
+                    S = MyModel.Solve("CUTOFF", "GUROBI", print_log=False, time_limit= time_lim, n_sol_pricing= n_sol_pricing, n_sol_pricingMinRank=n_sol_pricingMinRank, gap_solutionpool_pricing=gap_pricing, MIPGap=MIPGap, bool_ColumnGen=bool_ColumnGen, bool_supercolumn=bool_supercolumn, print_out=print_intermediate)
 
-                    # Store solution
-                    row_data[f'sol_{counter}_label'] = s
-                    row_data[f'{counter}_avg_rank_result'] = S.avg_ranks['result']
-                    row_data[f'{counter}_avg_rank_heur'] = S.avg_ranks['first_iter']
-                    row_data[f'{counter}_bool_CG'] = bool_ColumnGen
-                    row_data[f'{counter}_time'] = S.time
-                    row_data[f'{counter}_time_lim_exceeded'] = S.time_limit_exceeded
-                    row_data[f'{counter}_optimal'] = S.optimal
-                    row_data[f'{counter}_n_iter'] = S.iter      
-                    row_data[f'{counter}_n_match'] = S.n_match  
+                    row_data = add_line(row_data=row_data, S=S, s=s, sol_list=sol_list, counter=counter, A=A, A_SIC=A_SIC, A_EADAM=A_EADAM, bool_ColumnGen=bool_ColumnGen)
+ 
+                
+                elif s == "SD_UPON_DA_SAMPLE":
+                    MyModel = ModelColumnGen(MyData, A_SIC, A.assignment, bool_identical_students, False,  print_intermediate)
+                    
+                    MyModel.add_n_new_matchings(n_sol_extra_sample, seed_vector[i] + 100, print_out)
+                    
+                    S = MyModel.Solve("CUTOFF", "GUROBI", print_log=False, time_limit= time_lim, n_sol_pricing= n_sol_pricing, n_sol_pricingMinRank=n_sol_pricingMinRank, gap_solutionpool_pricing=gap_pricing, MIPGap=MIPGap, bool_ColumnGen=bool_ColumnGen, bool_supercolumn=bool_supercolumn, print_out=print_intermediate)
+                    
+                    row_data = add_line(row_data=row_data, S=S, s=s, sol_list=sol_list, counter=counter, A=A, A_SIC=A_SIC, A_EADAM=A_EADAM, bool_ColumnGen=bool_ColumnGen)
 
-                    comp_DA = S.A.compare(A.assignment)
-                    comp_EE = S.A.compare(A_SIC.assignment)
-                    if "SD_UPON_EADA" in sol_list:
-                        comp_EADA = S.A.compare(A_EADAM.assignment)
 
-                    row_data[f'{counter}_n_stud_impr_DA'] = comp_DA["n_students_improving"]     
-                    row_data[f'{counter}_avg_rank_impr_DA'] = comp_DA["average_rank_increase"]  
-                    row_data[f'{counter}_median_rank_impr_DA'] = comp_DA["median_rank_improvement"]   
+                elif s == "SD_UPON_EADA_SAMPLE":
+                    MyModel = ModelColumnGen(MyData, A_SIC, A_EADAM.assignment, bool_identical_students, False,  print_intermediate)
 
-                    row_data[f'{counter}_n_stud_impr_EE'] = comp_EE["n_students_improving"]     
-                    row_data[f'{counter}_avg_rank_impr_EE'] = comp_EE["average_rank_increase"]  
-                    row_data[f'{counter}_median_rank_impr_EE'] = comp_EE["median_rank_improvement"]    
-                    if "SD_UPON_EADA" in sol_list:
-                        row_data[f'{counter}_n_stud_impr_EADA'] = comp_EADA["n_students_improving"]     
-                        row_data[f'{counter}_avg_rank_impr_EADA'] = comp_EADA["average_rank_increase"]  
-                        row_data[f'{counter}_median_rank_impr_EADA'] = comp_EADA["median_rank_improvement"]  
+                    MyModel.add_n_new_matchings(n_sol_extra_sample, seed_vector[i] + 100, print_out)
 
-                elif s == "SD_UPON_EADA":
-                    MyModel = ModelColumnGen(MyData, A_SIC, A_EADAM.assignment, bool_identical_students, print_intermediate)
-                    S = MyModel.Solve("TRAD", "GUROBI", print_log=False, time_limit= time_lim, n_sol_pricing= n_sol_pricing, gap_solutionpool_pricing=gap_pricing, MIPGap=MIPGap, bool_ColumnGen=bool_ColumnGen, print_out=print_intermediate)
+                    S = MyModel.Solve("CUTOFF", "GUROBI", print_log=False, time_limit= time_lim, n_sol_pricing= n_sol_pricing, n_sol_pricingMinRank=n_sol_pricingMinRank, gap_solutionpool_pricing=gap_pricing, MIPGap=MIPGap, bool_ColumnGen=bool_ColumnGen, bool_supercolumn=bool_supercolumn, print_out=print_intermediate)
             
-                    # Store solution
-                    row_data[f'sol_{counter}_label'] = s
-                    row_data[f'{counter}_avg_rank_result'] = S.avg_ranks['result']
-                    row_data[f'{counter}_avg_rank_heur'] = S.avg_ranks['first_iter']
-                    row_data[f'{counter}_bool_CG'] = bool_ColumnGen
-                    row_data[f'{counter}_time'] = S.time
-                    row_data[f'{counter}_time_lim_exceeded'] = S.time_limit_exceeded
-                    row_data[f'{counter}_optimal'] = S.optimal
-                    row_data[f'{counter}_n_iter'] = S.iter      
-                    row_data[f'{counter}_n_match'] = S.n_match  
-
-                    comp_DA = S.A.compare(A.assignment)
-                    comp_EE = S.A.compare(A_SIC.assignment)
-                    if "SD_UPON_EADA" in sol_list:
-                        comp_EADA = S.A.compare(A_EADAM.assignment)
-
-                    row_data[f'{counter}_n_stud_impr_DA'] = comp_DA["n_students_improving"]     
-                    row_data[f'{counter}_avg_rank_impr_DA'] = comp_DA["average_rank_increase"]  
-                    row_data[f'{counter}_median_rank_impr_DA'] = comp_DA["median_rank_improvement"]   
-
-                    row_data[f'{counter}_n_stud_impr_EE'] = comp_EE["n_students_improving"]     
-                    row_data[f'{counter}_avg_rank_impr_EE'] = comp_EE["average_rank_increase"]  
-                    row_data[f'{counter}_median_rank_impr_EE'] = comp_EE["median_rank_improvement"]    
-                    if "SD_UPON_EADA" in sol_list:
-                        row_data[f'{counter}_n_stud_impr_EADA'] = comp_EADA["n_students_improving"]     
-                        row_data[f'{counter}_avg_rank_impr_EADA'] = comp_EADA["average_rank_increase"]  
-                        row_data[f'{counter}_median_rank_impr_EADA'] = comp_EADA["median_rank_improvement"]  
+                    row_data = add_line(row_data=row_data, S=S, s=s, sol_list=sol_list, counter=counter, A=A, A_SIC=A_SIC, A_EADAM=A_EADAM, bool_ColumnGen=bool_ColumnGen)
+              
 
                 counter = counter + 1
 
@@ -293,7 +251,7 @@ def SimulationCG(COMPARE_SOLUTIONS: list, n_students_schools: list, alpha: list,
             row_data['avg_rank_impr_EE_DA'] = comp_EE_DA["average_rank_increase"]  
             row_data['median_rank_impr_EE_DA'] = comp_EE_DA["median_rank_improvement"]  
 
-            if "SD_UPON_EADA" in sol_list:
+            if ("SD_UPON_EADA" in sol_list) or ("SD_UPON_EADA_SAMPLE" in sol_list):
                 comp_EADA_DA = A_EADAM.compare(A.assignment)
                 comp_EADA_EE = A_EADAM.compare(A_SIC.assignment)
                 comp_EE_EADA = A_SIC.compare(A_EADAM.assignment)
@@ -318,3 +276,34 @@ def SimulationCG(COMPARE_SOLUTIONS: list, n_students_schools: list, alpha: list,
                 writer.writerow(row_data)
 
     return S_vector
+
+def add_line(row_data: dict, S: SolutionReport, s, sol_list: list, counter: int, A: Assignment, A_SIC: Assignment, A_EADAM: Assignment, bool_ColumnGen: bool):
+    # Store solution
+    row_data[f'sol_{counter}_label'] = s
+    row_data[f'{counter}_avg_rank_result'] = S.avg_ranks['result']
+    row_data[f'{counter}_avg_rank_heur'] = S.avg_ranks['first_iter']
+    row_data[f'{counter}_bool_CG'] = bool_ColumnGen
+    row_data[f'{counter}_time'] = S.time
+    row_data[f'{counter}_time_lim_exceeded'] = S.time_limit_exceeded
+    row_data[f'{counter}_optimal'] = S.optimal  
+    row_data[f'{counter}_n_iter'] = S.iter      
+    row_data[f'{counter}_n_match'] = S.n_match  
+
+    comp_DA = S.A.compare(A.assignment)
+    comp_EE = S.A.compare(A_SIC.assignment)
+    if ("SD_UPON_EADA" in sol_list) or ("SD_UPON_EADA_SAMPLE" in sol_list):
+        comp_EADA = S.A.compare(A_EADAM.assignment)
+
+    row_data[f'{counter}_n_stud_impr_DA'] = comp_DA["n_students_improving"]     
+    row_data[f'{counter}_avg_rank_impr_DA'] = comp_DA["average_rank_increase"]  
+    row_data[f'{counter}_median_rank_impr_DA'] = comp_DA["median_rank_improvement"]   
+
+    row_data[f'{counter}_n_stud_impr_EE'] = comp_EE["n_students_improving"]     
+    row_data[f'{counter}_avg_rank_impr_EE'] = comp_EE["average_rank_increase"]  
+    row_data[f'{counter}_median_rank_impr_EE'] = comp_EE["median_rank_improvement"]    
+    if ("SD_UPON_EADA" in sol_list) or ("SD_UPON_EADA_SAMPLE" in sol_list):
+        row_data[f'{counter}_n_stud_impr_EADA'] = comp_EADA["n_students_improving"]     
+        row_data[f'{counter}_avg_rank_impr_EADA'] = comp_EADA["average_rank_increase"]  
+        row_data[f'{counter}_median_rank_impr_EADA'] = comp_EADA["median_rank_improvement"]   
+
+    return row_data

@@ -2,6 +2,7 @@ from .Assignment import *
 from .Assignment import find_identical_students_from_matrix
 from .Assignment import stability_test_single_matching
 from .SICs import *
+from .DA_STB import *
 
 # Install necessary packages before running the script:
 # pip install pulp
@@ -575,7 +576,6 @@ class ModelColumnGen:
                     
                 # Modify objective function pricing problem
                 pricing_obj = LpAffineExpression()
-                pricing_obj = LpAffineExpression()
                 for i in self.STUD:
                     #print('student ', i)
                     for j in range(len(self.MyData.pref[i])): 
@@ -590,38 +590,6 @@ class ModelColumnGen:
                             name = "Mu_" +  str(self.MyData.ID_stud[i]) + "_" + str(pref_school)
                             pricing_obj += self.M_pricing[i,pref_school] * duals[name] 
 
-
-
-
-
-                #################################################
-                # OLD VERSION
-                # Modify objective function pricing problem
-                #pricing_obj = LpAffineExpression()
-                #for i in self.STUD:
-                #    #print('student ', i)
-                #    for j in range(len(self.MyData.pref[i])): 
-                #        school_name = self.MyData.pref_index[i][j]
-                #        # pricing_obj -= self.M_pricing[i,school_name] * (self.MyData.rank_pref[i,school_name]+ 1) / self.MyData.n_stud # + 1 because the indexing starts from zero
-                #        #print('  school ', school_name, -(self.MyData.rank_pref[i,school_name]+ 1) / self.MyData.n_stud)
-                #        new_coefficient = - (self.MyData.rank_pref[i,school_name]+ 1) / self.MyData.n_stud
-                #        for k in range(j+1):
-                #            pref_school = self.MyData.pref_index[i][k]
-                #            name = "Mu_" +  str(self.MyData.ID_stud[i]) + "_" + str(pref_school)
-                #            new_coefficient = new_coefficient + duals[name] 
-                #            #pricing_obj += self.M_pricing[i,pref_school] * duals[name}
-                #            #print('      school ', pref_school, duals[name])
-                #        pricing_obj += self.M_pricing[i,pref_school] * new_coefficient 
-                ##################################################
-
-
-
-                        #if print_out:
-                            #if new_coefficient > 0.00001:
-                                #print("  New coefficient ", i, pref_school, new_coefficient)
-                                # Modify objective function pricing problem
-                
-              
 
                 if self.bool_identical_students:
                     for [i,j] in self.identical_students:
@@ -658,10 +626,30 @@ class ModelColumnGen:
                     # As Gurobi seems to rely on the lp file, constant term doesn't appear in outputs Gurobi
                     # However, they will be included in the returned objective value by Pulp!
 
-                self.pricing.objective = LpAffineExpression()
-                self.pricing.setObjective(pricing_obj)
-                #if print_out:
-                #    print(pricing_obj)
+                
+                # Use other pricing objective function
+                #self.pricing.objective = LpAffineExpression()
+                #self.pricing.setObjective(pricing_obj)
+                
+                # Pricing problem that minimizes average rank, while taking dual variables into account
+
+                # Add constraint to enforce that reduced cost is negative (or objective pricing positive)
+                self.pricing += (pricing_obj >= 0, "PricingObjConstr") 
+
+                self.pricing.sense = pl.LpMinimize
+                # Change objective function to minimize rank
+                new_obj = LpAffineExpression()
+                for (i,j) in self.PAIRS:
+                    name_constr = "FOSD_" +  str(self.MyData.ID_stud[i]) + "_" + str(j)
+                    dual_value=self.master.constraints[name_constr].pi
+                
+                    new_obj += self.M_pricing[i,j]*(self.MyData.rank_pref[i,j]+ 1 +self.obj_master[-1] * dual_value/self.max_dual) / self.MyData.n_stud # + 1 because the indexing starts from zero
+                    #new_obj += self.M_pricing[i,j]*(self.MyData.rank_pref[i,j] + 1) / self.MyData.n_stud # + 1 because the indexing starts from zero
+            
+                
+                # Add this variable to the model with the correct objective coefficient
+                self.pricing.objective = LpAffineExpression() 
+                self.pricing.setObjective(new_obj)
 
                 # Intermezzo: now that we have the dual variables, we can check whether the supercolumn can be removed
                     # Remove if it had a weight of zero in master problem
@@ -888,11 +876,16 @@ class ModelColumnGen:
                         #if self.iterations == 10:
                         #    optimal = True
                         #    print("Process terminated after ", self.iterations, " iterations.")
-                        self.iterations = self.iterations + 1                
+                        self.iterations = self.iterations + 1    
 
+                        # Remove constraint that reduced cost is negative again
+                        self.pricing.constraints.pop("PricingObjConstr")            
+
+                        
+                        
                         # other problem to generate matchings
                         # The following function minimizes the average rank over all matchings with negative reduced cost.
-                        self.pricingMinRank(stab_constr, solver, print_log, time_limit, n_sol_pricingMinRank, gap_solutionpool_pricing, MIPGap, bool_ColumnGen, bool_supercolumn, print_out, pricing_obj, starting_time, solver_function)                        
+                        #self.pricingMinRank(stab_constr, solver, print_log, time_limit, n_sol_pricingMinRank, gap_solutionpool_pricing, MIPGap, bool_ColumnGen, bool_supercolumn, print_out, pricing_obj, starting_time, solver_function)                        
                         
  
                     else:
@@ -1039,6 +1032,9 @@ class ModelColumnGen:
                                 #print("Improving matchings found by SICs", sum(counter_M_improved)) 
 
                             self.N_MATCH = range(self.nr_matchings)
+
+                            # Remove constraint that reduced cost is negative again
+                            self.pricing.constraints.pop("PricingObjConstr")
         
                             #print("Matching added.")
                             #if print_out:
@@ -1212,8 +1208,9 @@ class ModelColumnGen:
             name_constr = "FOSD_" +  str(self.MyData.ID_stud[i]) + "_" + str(j)
             dual_value=self.master.constraints[name_constr].pi
         
-            new_obj += self.M_pricing[i,j]*(self.MyData.rank_pref[i,j]+ self.obj_master[-1] * dual_value/self.max_dual) / self.MyData.n_stud # + 1 because the indexing starts from zero
-                 
+            new_obj += self.M_pricing[i,j]*(self.MyData.rank_pref[i,j]+ 1 +self.obj_master[-1] * dual_value/self.max_dual) / self.MyData.n_stud # + 1 because the indexing starts from zero
+            #new_obj += self.M_pricing[i,j]*(self.MyData.rank_pref[i,j] + 1) / self.MyData.n_stud # + 1 because the indexing starts from zero
+     
         
         # Add this variable to the model with the correct objective coefficient
         self.pricing.objective = LpAffineExpression() 
@@ -1475,6 +1472,22 @@ class ModelColumnGen:
 
         return pricing_obj_value
 
+
+    def add_n_new_matchings(self, n_generated: int, seed:int, print_out: bool):
+
+        A_extra = DA_STB(self.MyData, n_generated, 'EE', False, seed, print_out)
+
+        # Find Stable improvement cycles à la Erdil and Ergin (2008)
+        A_SIC_extra = SIC_all_matchings(self.MyData, A_extra, print_out)
+        A_SIC_M_list =np.array(list(A_SIC_extra.M_set))
+
+        # Add matchings in A_SIC_extra to model
+        for m in tqdm(range(len(A_SIC_M_list)), desc='Master: add decision variables', unit='var', disable= not True):
+            #print(self.M[m])
+            self.M_list.append(A_SIC_M_list[m])
+            self.nr_matchings =self.nr_matchings + 1
+            self.N_MATCH = range(self.nr_matchings)
+            self.add_matching(A_SIC_M_list[m], len(self.w), False)
 
 
     def generate_solution_report(self, print_out = False):
