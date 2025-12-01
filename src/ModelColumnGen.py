@@ -1555,6 +1555,7 @@ class ModelColumnGen:
             # Make sure assignment is empty in Xassignment
             self.Xassignment.assignment = np.full((self.MyData.n_stud, self.MyData.n_schools), np.nan)
 
+            n_match_support = 0
             # Store decomposition
             #self.Xdecomp = [] # Matchings in the found decomposition
             #self.Xdecomp_coeff = [] # Weights of these matchings
