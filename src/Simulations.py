@@ -258,7 +258,6 @@ def SimulationCG(COMPARE_SOLUTIONS: list, n_students_schools: list, alpha: list,
             
                     row_data = add_line(row_data=row_data, S=S, s=s, sol_list=sol_list, counter=counter, A=A, A_SIC=A_SIC, A_EADAM=A_EADAM, bool_ColumnGen=bool_ColumnGen)
               
-                print(s)
                 # Write master objectives to csv file
                 row_data_obj = [n,m,a,b,seed_vector[i], s, S.iter]
                 for k in S.obj_master:
