@@ -1283,7 +1283,7 @@ class ModelColumnGen:
             self.time_limit_exceeded = True
             optimal = False
             self.time_columnGen = self.time_limit
-            return 0
+            return 
                 # We can't create solution report here, because matchings have been added in
                 # previous pricing problem. Go back, and create solution report in main function
                     # based on check if pricing status == 0
@@ -1554,7 +1554,7 @@ class ModelColumnGen:
             
             # Make sure assignment is empty in Xassignment
             self.Xassignment.assignment = np.full((self.MyData.n_stud, self.MyData.n_schools), np.nan)
-
+            S.obj_master = []
             n_match_support = 0
             # Store decomposition
             #self.Xdecomp = [] # Matchings in the found decomposition
@@ -1613,7 +1613,8 @@ class ModelColumnGen:
         S.A_DA_prob = copy.deepcopy(self.p_DA)
 
         S.iter = self.iterations
-        S.n_match = len(self.N_MATCH)
+        #S.n_match = len(self.N_MATCH)
+        S.n_match = len(self.M_list)
 
         S.bool_ColumnGen = self.bool_ColumnGen
 

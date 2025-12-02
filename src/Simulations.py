@@ -148,6 +148,15 @@ def SimulationCG(COMPARE_SOLUTIONS: list, n_students_schools: list, alpha: list,
     # Create pandas dataframe to store results along the way
     df = pd.DataFrame(columns=headers)
 
+    # Second csv file that stores values of master objective
+    # Create csv file
+    output_file_obj = 'Simulation Results/SIM_' + now + '_obj.csv'
+    headers2 = ['n_stud', 'n_schools', 'alpha', 'beta', 'seed', "sol_method", "iterations", "master objective values"]
+
+    with open(output_file_obj, 'w', newline='') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=headers2)
+        writer.writeheader() # Writes the header row from 'headers
+    
 
     total_combinations = len(n_students_schools) * len(alpha) * len(beta)
 
@@ -249,7 +258,16 @@ def SimulationCG(COMPARE_SOLUTIONS: list, n_students_schools: list, alpha: list,
             
                     row_data = add_line(row_data=row_data, S=S, s=s, sol_list=sol_list, counter=counter, A=A, A_SIC=A_SIC, A_EADAM=A_EADAM, bool_ColumnGen=bool_ColumnGen)
               
+                print(s)
+                # Write master objectives to csv file
+                row_data_obj = [n,m,a,b,seed_vector[i], s, S.iter]
+                for k in S.obj_master:
+                    row_data_obj.append(k)
 
+                with open(output_file_obj, 'a', newline='') as csvfile:
+                    # Create a CSV writer object
+                    writer = csv.writer(csvfile)
+                    writer.writerow(row_data_obj)
                 counter = counter + 1
 
             # Add comparisons in improving students between EE, DA, and EADA
@@ -282,6 +300,9 @@ def SimulationCG(COMPARE_SOLUTIONS: list, n_students_schools: list, alpha: list,
                 writer = csv.DictWriter(csvfile, fieldnames=headers)
                 writer.writerow(row_data)
 
+
+            
+
     return S_vector
 
 def add_line(row_data: dict, S: SolutionReport, s, sol_list: list, counter: int, A: Assignment, A_SIC: Assignment, A_EADAM: Assignment, bool_ColumnGen: bool):
@@ -295,7 +316,7 @@ def add_line(row_data: dict, S: SolutionReport, s, sol_list: list, counter: int,
     row_data[f'{counter}_optimal'] = S.optimal  
     row_data[f'{counter}_n_iter'] = S.iter      
     row_data[f'{counter}_n_match'] = S.n_match
-    row_data[f'{counter}_n_match'] = S.n_match_support
+    row_data[f'{counter}_n_match_support'] = S.n_match_support
     row_data[f'{counter}_n_assigned'] = S.n_students_assigned
 
     comp_DA = S.A.compare(A.assignment)
