@@ -349,6 +349,11 @@ def construct_proposals(N, A, proposeoffset, print_out = False):
         proposals.append({})
         
     for student in range(len(N)):
+        ######## CHANGE TO CODE ERDIL & ERGIN ##########
+        # If a student is not assigned to any school, they would prefer to go to any school more preferred than the outside option
+        # Add these proposals! This avoids come cycles that might cause blockings 
+
+
         for school_got_rejected in N[student][:proposeoffset[student]]:
             if print_out:
                 print(('\tstudent', student, 'is rejected from', school_got_rejected,N[student][:proposeoffset[student]]))

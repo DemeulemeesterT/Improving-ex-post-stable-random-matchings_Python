@@ -23,7 +23,7 @@ def SIC_all_matchings(MyData: Data, A: Assignment, print_out = False):
         w_original = A.w_set[M]
 
         # Find SICs
-        M_out = SIC(MyData, M, False)
+        M_out = SIC(MyData, M, True)
         
 
         M_set.add(tuple(map(tuple,M_out))) # This is needed because numpy arrays cannot be used as keys in a dictionary
@@ -57,7 +57,7 @@ def SIC(MyData: Data, M: np.ndarray, print_out = False):
     M_EE = transform_M_us_to_EE(MyData, M, print_out)
 
     # Store for each student to which preference they are assigned
-    assigned_pref = [0] * len(N)
+    assigned_pref = [MyData.n_schools] * len(N)
     for i in range(MyData.n_stud):
         for k in range(len(MyData.pref_index[i])): # Go through all pref
             if M[i][MyData.pref_index[i][k]] == 1: # If assigned to object on k-th spot in preferences of student i
