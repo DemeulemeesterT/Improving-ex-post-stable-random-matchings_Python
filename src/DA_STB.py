@@ -61,6 +61,7 @@ def DA_STB(MyData: Data, n_iter: int, DA_impl: str, bool_SIC: bool, seed = 12345
         # Compute SICs, if desired
         if bool_SIC:
             M_computed = SIC(Data_new_prior, M_computed, False)
+        
 
         M_set.add(tuple(map(tuple, M_computed))) # Add found matching to the set of matchings
             # You have to add it as a tuple of tuples, because otherwise Python cannot check whether it was already in the set.
