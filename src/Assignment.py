@@ -346,6 +346,7 @@ class Assignment:
                                     unstable_pairs.append((i, test_school, m))
                                     if print_out:
                                         print(f"Matching {counter}: Unstable pair: Student {i} and School {test_school}.\nM({i},{matched_school}) = 1, M({assigned_student}, {test_school}) = 1")
+                                        print(np.array(self.M_list[counter]))
             
                         # Also add check that capacity of more preferred schools are not filled
                         capacity_filled = 0
@@ -364,8 +365,10 @@ class Assignment:
         if print_out:
             if len(unstable_pairs) == 0:
                 print("The assignment only contains weakly stable matchings.")
+                return True
             else:
                 print(f"The assignment contains weakly unstable matchings! ")
+                return False
 
 
 def stability_test_single_matching(MyData: Data, M:np.ndarray, print_out: bool):
@@ -416,9 +419,11 @@ def stability_test_single_matching(MyData: Data, M:np.ndarray, print_out: bool):
 
     if print_out:
         if len(unstable_pairs) != 0:
-            print(f"The matching is NOT weakly stable matchings!")
+            print(f"The matching is NOT weakly stable!")
             return False
         else: 
+            if print_out:
+                print(f"The matching is weakly stable!")
             return True
 
 

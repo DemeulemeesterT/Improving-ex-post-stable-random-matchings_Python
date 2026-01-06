@@ -341,6 +341,74 @@ def SIC_EE(N, A, Q, allocation, pro_off, print_out = False):
             'total_moves' : total_moves, 'total_cycles' : total_cycles , \
             'improved_students' : improved_students}
 
+
+def SIC_EE_with_mistake_EE(N, A, Q, allocation, pro_off, print_out = False):
+    """
+        Careful: always imput all variables in the format of EE (if necessary, use transformation functions)
+
+        This function finds stable improvement cycles
+
+        N = preferences
+        A = priorities
+        Q = capacities
+        allocation
+        'pro_off' contains the preferences of the assigned objects for the agents
+
+    """
+    all = deepcopy(allocation)
+    pro = construct_proposals(N, A, pro_off, print_out) # Dictionaries with for each school, the students who prefer that school to their current school, together with their rank.
+
+    if print_out:
+        print("Pro", pro)
+
+    improved_students = set([])
+    iterations = 0
+    total_moves = 0
+    total_cycles = 0
+    
+    while(True):
+        if print_out:
+            print(('allocation :', all))
+
+
+        ############
+        # ERROR ####
+        ############
+        # Always computes again from the initial matching! 
+        # Like this, a student might get first better off, and then again worse off, and this may cause instability.
+
+        # Also, after executing the cycle, the proposals are wrong: some students still propose to things that are now less preferred!  
+
+        best = best_substitudes(pro) # Retain set of students with best rank among proposers, for each school
+        graph, soe = construct_digraph(all, best) # Make graph with one node for each school
+        obj = DFS(graph)
+        if print_out:
+            print(('pro_off    :', pro_off)) # Preferences of assigned students
+            print(('application:', pro)) # Proposing students and their ranks at each school
+            print(('best-subs  :', best)) # Set of students who propose with highest rank for each school (D_j in EE paper)
+            print(('graph      :', graph))
+            print(('soe        :', soe))
+        obj.DFS() #Find cycle
+        if print_out:
+            print(('Cycle', obj.cycle))
+        if obj.cycle is None:
+            break
+        improve_allocations_with_mistake_EE(N, A, all, pro, soe, obj.cycle, print_out) # Careful, these variables are changed by this function
+        if print_out:
+            print(('pro_off after cycle:', pro_off)) # Preferences of assigned students
+            print(('application after cycle:', pro))
+
+        iterations += 1
+        total_moves += calculate_moves(N, soe, obj.cycle)
+        total_cycles += len(obj.cycle)
+        for index in range(len(obj.cycle)-1):
+            improved_students.add(soe[(obj.cycle[index], obj.cycle[index+1])])
+        improved_students.add(soe[(obj.cycle[-1], obj.cycle[0])])
+
+    return {'optimal_all' : all, 'iterations' : iterations, \
+            'total_moves' : total_moves, 'total_cycles' : total_cycles , \
+            'improved_students' : improved_students}
+
 def construct_proposals(N, A, proposeoffset, print_out = False):
     if print_out:
         print('\nconstruct_proposals()')
@@ -483,6 +551,26 @@ def improve_allocations(N, A, allocation, proposals, soe, cycle, print_out = Fal
         ###################
 
         
+        
+    for index in range(len(cycle)-1):
+        move(cycle[index], cycle[index+1])
+    move(cycle[-1], cycle[0])
+
+
+def improve_allocations_with_mistake_EE(N, A, allocation, proposals, soe, cycle, print_out = False):
+    if cycle is None or len(cycle) < 2 :
+        return
+    def move(school1, school2):
+        student = soe[(school1, school2)]
+        if print_out:
+            print(('\tmove', school1, school2, 'student:', student))
+        allocation[school1].remove(student)
+        allocation[school2].add(student)
+        rank = A[school2][student]
+        proposals[school2][rank].remove(student) # Removes student from their newly assigned school in proposals
+
+        if len(proposals[school2][rank]) == 0:
+            proposals[school2].pop(rank)        
         
     for index in range(len(cycle)-1):
         move(cycle[index], cycle[index+1])
