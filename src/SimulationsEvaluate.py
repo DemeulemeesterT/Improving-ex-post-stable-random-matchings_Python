@@ -370,11 +370,11 @@ def AvgRankImpr_absolute_filter(df: pd.DataFrame, name: str, beta_in:float, prin
         counter = 1
         for s in labels:
             if s != "SD_UPON_EADA":
-                plt.plot(df_n['alpha'], df_n[f'DiffHeur{counter}'], label = labels[counter - 1] + ' (heuristic)')
+                plt.plot(df_n['alpha'], df_n[f'DiffHeur{counter}'], label = str(labels[counter - 1]) + ' (heuristic)')
                 # Check if better result column generation
                 df_n['differs'] = (df_n[f'DiffHeur{counter}'] - df_n[f'DiffResult{counter}']).abs() >= 0.001
                 if df_n['differs'].any == True:
-                    plt.plot(df_n['alpha'], df_n[f'DiffResult{counter}'], label = labels[counter - 1] + ' (CG)')
+                    plt.plot(df_n['alpha'], df_n[f'DiffResult{counter}'], label = str(labels[counter - 1]) + ' (CG)')
             counter = counter  +1
         
         plt.plot(df_n['alpha'], df_n['DiffEE'], label = "DA + SIC")
@@ -575,7 +575,7 @@ def Fraction_improving_students_filter(df: pd.DataFrame, name: str, beta_in:floa
         counter = 1
         for s in labels:
             if s != "SD_UPON_EADA":
-                plt.plot(df_n['alpha'], df_n[f'DiffHeur{counter}_DA'], label = labels[counter - 1] + ' (heuristic)')
+                plt.plot(df_n['alpha'], df_n[f'DiffHeur{counter}_DA'], label = str(labels[counter - 1]) + ' (heuristic)')
                 # Check if better result column generation
                 # df_n['differs'] = (df_n[f'DiffHeur{counter}_DA'] - df_n[f'DiffResult{counter}_DA']).abs() >= 0.001
                 # if df_n['differs'].any == True:
@@ -604,7 +604,7 @@ def Fraction_improving_students_filter(df: pd.DataFrame, name: str, beta_in:floa
         counter = 1
         for s in labels:
             if s != "SD_UPON_EADA":
-                plt.plot(df_n['alpha'], df_n[f'DiffHeur{counter}_EE'], label = labels[counter - 1] + ' (heuristic)')
+                plt.plot(df_n['alpha'], df_n[f'DiffHeur{counter}_EE'], label = str(labels[counter - 1]) + ' (heuristic)')
                 # Check if better result column generation
                 # df_n['differs'] = (df_n[f'DiffHeur{counter}_DA'] - df_n[f'DiffResult{counter}_DA']).abs() >= 0.001
                 # if df_n['differs'].any == True:
@@ -724,7 +724,7 @@ def Fraction_improving_students_EADA(df: pd.DataFrame, name: str, beta_in:float,
         #plt.plot(df_n['alpha'], df_n['DiffEADA'], label = "EADA")
         counter = 1
         for s in labels:
-            plt.plot(df_n['alpha'], df_n[f'DiffHeur{counter}_DA'], label = labels[counter - 1] + ' (heuristic)', marker = ".")
+            plt.plot(df_n['alpha'], df_n[f'DiffHeur{counter}_DA'], label = str(labels[counter - 1]) + ' (heuristic)', marker = ".")
             # Check if better result column generation
             # df_n['differs'] = (df_n[f'DiffHeur{counter}_DA'] - df_n[f'DiffResult{counter}_DA']).abs() >= 0.001
             # if df_n['differs'].any == True:
