@@ -38,18 +38,51 @@ def plot_avg_rank_alpha_beta_final(file_name: str, print_out = False):
     group_cols = ["n_stud", "beta", "alpha"]
 
     # =========================
-    # Aggregate: mean & std over seeds
+    # Aggregate: mean + IQR
     # =========================
 
-    agg = (
-        df[group_cols + y_cols]
-        .groupby(group_cols)
-        .agg(["mean", "std"])
-    )
+    agg_list = []
+
+    for col in y_cols:
+        tmp = (
+            df[group_cols + [col]]
+            .groupby(group_cols)
+            .agg(
+                mean=(col, "mean"),
+                q25=(col, lambda x: x.quantile(0.25)),
+                q75=(col, lambda x: x.quantile(0.75)),
+            )
+            .reset_index()
+        )
+
+        # Rename columns to avoid collisions
+        tmp = tmp.rename(
+            columns={
+                "mean": f"{col}_mean",
+                "q25": f"{col}_q25",
+                "q75": f"{col}_q75",
+            }
+        )
+
+        agg_list.append(tmp)
+
+
+    # Merge all metrics into one dataframe
+    agg = agg_list[0]
+    for tmp in agg_list[1:]:
+        agg = agg.merge(tmp, on=group_cols)
+
+    #print(agg)
+
+    #agg = (
+    #    df[group_cols + y_cols]
+    #    .groupby(group_cols)
+    #    .agg(["mean", "std"])
+    #)
 
     # Flatten column names
-    agg.columns = [f"{col}_{stat}" for col, stat in agg.columns]
-    agg = agg.reset_index()
+    #agg.columns = [f"{col}_{stat}" for col, stat in agg.columns]
+    #agg = agg.reset_index()
 
     # =========================
     # Determine common y-axis limit
@@ -57,8 +90,8 @@ def plot_avg_rank_alpha_beta_final(file_name: str, print_out = False):
 
     upper_cols = [f"{c}_mean" for c in y_cols] + [f"{c}_std" for c in y_cols]
     y_max = (
-        agg[[f"{c}_mean" for c in y_cols]]
-        .add(agg[[f"{c}_std" for c in y_cols]].values)
+        agg[[f"{c}_q75" for c in y_cols]]
+        #.add(agg[[f"{c}_q75" for c in y_cols]].values)
         .max()
         .max()
     )
@@ -119,16 +152,28 @@ def plot_avg_rank_alpha_beta_final(file_name: str, print_out = False):
                 **styles[col]
             )
 
-            # ±1 standard deviation band
-            # Colored error bands
+
+            # Inter Quartile Range band
+            # IQR band
             ax_rc.fill_between(
                 sub.alpha,
-                sub[f"{col}_mean"] - sub[f"{col}_std"],
-                sub[f"{col}_mean"] + sub[f"{col}_std"],
+                sub[f"{col}_q25"],
+                sub[f"{col}_q75"],
                 color=styles[col]["color"],
-                alpha=0.1,
+                alpha=0.15,
                 linewidth=0
             )
+
+            # ±1 standard deviation band
+            # Colored error bands
+            #ax_rc.fill_between(
+            #    sub.alpha,
+            #    sub[f"{col}_mean"] - sub[f"{col}_std"],
+            #    sub[f"{col}_mean"] + sub[f"{col}_std"],
+            #    color=styles[col]["color"],
+            #    alpha=0.1,
+            #    linewidth=0
+            #)
 
             #ax_rc.errorbar(
             #    sub.alpha,
@@ -203,23 +248,54 @@ def plot_fraction_impr_alpha_beta_final(file_name: str, print_out = False):
     # Aggregate: mean & std over seeds
     # =========================
 
-    agg = (
-        df[group_cols + y_cols]
-        .groupby(group_cols)
-        .agg(["mean", "std"])
-    )
+    #agg = (
+    #    df[group_cols + y_cols]
+    #    .groupby(group_cols)
+    #    .agg(["mean", "std"])
+    #)
 
     # Flatten column names
-    agg.columns = [f"{col}_{stat}" for col, stat in agg.columns]
-    agg = agg.reset_index()
+    #agg.columns = [f"{col}_{stat}" for col, stat in agg.columns]
+    #agg = agg.reset_index()
+
+    agg_list = []
+
+    for col in y_cols:
+        tmp = (
+            df[group_cols + [col]]
+            .groupby(group_cols)
+            .agg(
+                mean=(col, "mean"),
+                q25=(col, lambda x: x.quantile(0.25)),
+                q75=(col, lambda x: x.quantile(0.75)),
+            )
+            .reset_index()
+        )
+
+        # Rename columns to avoid collisions
+        tmp = tmp.rename(
+            columns={
+                "mean": f"{col}_mean",
+                "q25": f"{col}_q25",
+                "q75": f"{col}_q75",
+            }
+        )
+
+        agg_list.append(tmp)
+
+
+    # Merge all metrics into one dataframe
+    agg = agg_list[0]
+    for tmp in agg_list[1:]:
+        agg = agg.merge(tmp, on=group_cols)
 
     # =========================
     # Determine common y-axis limit
     # =========================
 
     y_max = (
-        agg[[f"{c}_mean" for c in y_cols]]
-        .add(agg[[f"{c}_std" for c in y_cols]].values)
+        agg[[f"{c}_q75" for c in y_cols]]
+        #.add(agg[[f"{c}_std" for c in y_cols]].values)
         .max()
         .max()
     )
@@ -275,12 +351,23 @@ def plot_fraction_impr_alpha_beta_final(file_name: str, print_out = False):
             )
 
             # ±1 standard deviation band
+            #ax_rc.fill_between(
+            #    sub.alpha,
+            #    sub[f"{col}_mean"] - sub[f"{col}_std"],
+            #    sub[f"{col}_mean"] + sub[f"{col}_std"],
+            #    color=styles[col]["color"],
+            #    alpha=0.1,
+            #    linewidth=0
+            #)
+
+            # Inter Quartile Range band
+            # IQR band
             ax_rc.fill_between(
                 sub.alpha,
-                sub[f"{col}_mean"] - sub[f"{col}_std"],
-                sub[f"{col}_mean"] + sub[f"{col}_std"],
+                sub[f"{col}_q25"],
+                sub[f"{col}_q75"],
                 color=styles[col]["color"],
-                alpha=0.1,
+                alpha=0.15,
                 linewidth=0
             )
 
@@ -353,17 +440,48 @@ def plot_avg_rank_CG_eval_alpha_beta_final(file_name: str, print_out = False):
     # Aggregate: mean & std over seeds
     # =========================
 
-    agg = (
-        df[group_cols + y_cols]
-        .groupby(group_cols)
-        .agg(["mean", "std"])
-    )
+    #agg = (
+    #    df[group_cols + y_cols]
+    #    .groupby(group_cols)
+    #    .agg(["mean", "std"])
+    #)
 
     # Flatten column names
-    agg.columns = [f"{col}_{stat}" for col, stat in agg.columns]
-    agg = agg.reset_index()
+    #agg.columns = [f"{col}_{stat}" for col, stat in agg.columns]
+    #agg = agg.reset_index()
 
-    #print(agg)
+    
+    agg_list = []
+
+    for col in y_cols:
+        tmp = (
+            df[group_cols + [col]]
+            .groupby(group_cols)
+            .agg(
+                mean=(col, "mean"),
+                q25=(col, lambda x: x.quantile(0.25)),
+                q75=(col, lambda x: x.quantile(0.75)),
+            )
+            .reset_index()
+        )
+
+        # Rename columns to avoid collisions
+        tmp = tmp.rename(
+            columns={
+                "mean": f"{col}_mean",
+                "q25": f"{col}_q25",
+                "q75": f"{col}_q75",
+            }
+        )
+
+        agg_list.append(tmp)
+
+
+    # Merge all metrics into one dataframe
+    agg = agg_list[0]
+    for tmp in agg_list[1:]:
+        agg = agg.merge(tmp, on=group_cols)
+
 
     # =========================
     # Determine common y-axis limit
@@ -371,7 +489,7 @@ def plot_avg_rank_CG_eval_alpha_beta_final(file_name: str, print_out = False):
 
     upper_cols = [f"{c}_mean" for c in y_cols] + [f"{c}_std" for c in y_cols]
     y_max = (
-        agg[[f"{c}_mean" for c in y_cols]]
+        agg[[f"{c}_q75" for c in y_cols]]
         #.add(agg[[f"{c}_std" for c in y_cols]].values)
         .max()
         .max()
@@ -456,6 +574,17 @@ def plot_avg_rank_CG_eval_alpha_beta_final(file_name: str, print_out = False):
             #    fmt='none'
             #)
 
+            # Inter Quartile Range band
+            # IQR band
+            ax_rc.fill_between(
+                sub.alpha,
+                sub[f"{col}_q25"],
+                sub[f"{col}_q75"],
+                color=styles[col]["color"],
+                alpha=0.15,
+                linewidth=0
+            )
+
         ax_rc.set_title(rf"$n={n_stud},\ \beta={beta}$")
         ax_rc.set_xlabel(r"$\alpha$")
         ax_rc.grid(axis="y", linewidth=0.5, color="lightgrey")
@@ -516,18 +645,54 @@ def evaluate_CG(file_name: str, print_out = False):
     # =========================
     # Aggregate: mean & std over seeds
     # =========================
+    #df_small = df[group_cols + y_cols]
+    #print(df_small[df["4_sample_vs_DA"]<-0.001])
 
-    agg = (
-        df[group_cols + y_cols]
-        .groupby(group_cols)
-        .agg(["mean", "std"])
-    )
+    #agg = (
+    #    df[group_cols + y_cols]
+    #    .groupby(group_cols)
+    #    .agg(["mean", "std"])
+    #)
 
     # Flatten column names
-    agg.columns = [f"{col}_{stat}" for col, stat in agg.columns]
-    agg = agg.reset_index()
+    #agg.columns = [f"{col}_{stat}" for col, stat in agg.columns]
+    #agg = agg.reset_index()
 
-    print(agg)
+    #print(agg)
+
+    agg_list = []
+
+    for col in y_cols:
+        tmp = (
+            df[group_cols + [col]]
+            .groupby(group_cols)
+            .agg(
+                mean=(col, "mean"),
+                q25=(col, lambda x: x.quantile(0.25)),
+                q75=(col, lambda x: x.quantile(0.75)),
+            )
+            .reset_index()
+        )
+
+        # Rename columns to avoid collisions
+        tmp = tmp.rename(
+            columns={
+                "mean": f"{col}_mean",
+                "q25": f"{col}_q25",
+                "q75": f"{col}_q75",
+            }
+        )
+
+        agg_list.append(tmp)
+
+
+    # Merge all metrics into one dataframe
+    agg = agg_list[0]
+    for tmp in agg_list[1:]:
+        agg = agg.merge(tmp, on=group_cols)
+
+    #print(agg)
+
 
         # =========================
     # Determine common y-axis limit
@@ -535,15 +700,15 @@ def evaluate_CG(file_name: str, print_out = False):
 
     upper_cols = [f"{c}_mean" for c in y_cols] + [f"{c}_std" for c in y_cols]
     y_max = (
-        agg[[f"{c}_mean" for c in y_cols]]
-        .add(agg[[f"{c}_std" for c in y_cols]].values)
+        agg[[f"{c}_q75" for c in y_cols]]
+        #.add(agg[[f"{c}_std" for c in y_cols]].values)
         .max()
         .max()
     )
 
     y_min = (
-        agg[[f"{c}_mean" for c in y_cols]]
-        .add(-agg[[f"{c}_std" for c in y_cols]].values)
+        agg[[f"{c}_q25" for c in y_cols]]
+        #.add(-agg[[f"{c}_std" for c in y_cols]].values)
         .min()
         .min()
     )
@@ -607,12 +772,23 @@ def evaluate_CG(file_name: str, print_out = False):
 
             # ±1 standard deviation band
             # Colored error bands
+            #ax_rc.fill_between(
+            #    sub.alpha,
+            #    sub[f"{col}_mean"] - sub[f"{col}_std"],
+            #    sub[f"{col}_mean"] + sub[f"{col}_std"],
+            #    color=styles[col]["color"],
+            #    alpha=0.2,
+            #    linewidth=0
+            #)
+
+            # Inter Quartile Range band
+            # IQR band
             ax_rc.fill_between(
                 sub.alpha,
-                sub[f"{col}_mean"] - sub[f"{col}_std"],
-                sub[f"{col}_mean"] + sub[f"{col}_std"],
+                sub[f"{col}_q25"],
+                sub[f"{col}_q75"],
                 color=styles[col]["color"],
-                alpha=0.2,
+                alpha=0.15,
                 linewidth=0
             )
 
