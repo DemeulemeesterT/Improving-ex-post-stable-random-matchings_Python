@@ -72,7 +72,7 @@ def plot_avg_rank_alpha_beta_final(file_name: str, print_out = False):
     for tmp in agg_list[1:]:
         agg = agg.merge(tmp, on=group_cols)
 
-    #print(agg)
+    print(agg)
 
     #agg = (
     #    df[group_cols + y_cols]
@@ -642,6 +642,8 @@ def evaluate_CG(file_name: str, print_out = False):
 
     group_cols = ["n_stud", "beta", "alpha"]
 
+    print("Average difference CG and heur:", df["1_heur_vs_DA"].mean())
+
     # =========================
     # Aggregate: mean & std over seeds
     # =========================
@@ -818,9 +820,9 @@ def evaluate_CG(file_name: str, print_out = False):
     # =========================
 
     handles = [
+        ax[0][0].lines[2],
         ax[0][0].lines[0],
         ax[0][0].lines[1],
-        ax[0][0].lines[2],
     ]
 
     fig.legend(
