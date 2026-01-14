@@ -21,7 +21,7 @@ def read_dataEstonia(file_path):
     # Determine walking groups
     #tresholds = [1000, 2000, 4000, 7000]
     tresholds = [4000]
-    n_groups = len(tresholds) + 1
+    n_groups = len(tresholds) + 2 # +2 because you have the highest group for siblings
 
     
 
@@ -32,6 +32,17 @@ def read_dataEstonia(file_path):
         for _ in range(n_groups):
             groups.append([])
         for student in ID_stud:
+            filtered_values_sibling = df.loc[(df["child_id"] == student) & (df["garten_id"] == school), "has_sib"]
+            # Check is student has a sibling at the school
+            sibling_bool = False
+            if not filtered_values_sibling.empty:
+                sibling_bool = filtered_values_sibling.iloc[0] 
+            if sibling_bool == True:
+                # If student has a sibling at the school, put in highest priority group
+                groups[0].append(student)
+                print("Student, school, sibling", student, school, sibling_bool)
+            
+    
             filtered_values = df.loc[(df["child_id"] == student) & (df["garten_id"] == school), "distance_m"]
 
             # Check if there is at least one result
@@ -39,9 +50,9 @@ def read_dataEstonia(file_path):
                 dist = filtered_values.iloc[0]  # Now it's safe
                 #print("Stud, school, dist", student, school, dist)
                 if dist <= tresholds[0]:
-                    groups[0].append(student)
+                    groups[1].append(student)
                 else:
-                    for k in range(1, len(tresholds)):
+                    for k in range(2, len(tresholds)+1):
                         if (tresholds[k-1] <= dist) & (dist <= tresholds[k]):
                             #print("\tTresholds", tresholds[k-1], tresholds[k])
                             groups[k].append(student)
@@ -80,10 +91,10 @@ def read_dataEstonia(file_path):
 
 
     # Assign priorities: Schools rank students by their preference order
-    #prior = [[] for _ in ID_school]
-    #for school in ID_school:
-    #    school_applicants = df[df["garten_id"] == school].sort_values(by="distance_m")["child_id"].tolist()
-    #    prior[ID_school.index(school)] = school_applicants
+   # prior = [[] for _ in ID_school]
+   # for school in ID_school:
+   #     school_applicants = df[df["garten_id"] == school].sort_values(by="distance_m")["child_id"].tolist()
+   #     prior[ID_school.index(school)] = school_applicants
 
     # Capacities
     cap = [20, 20, 34, 18, 20, 38, 5]

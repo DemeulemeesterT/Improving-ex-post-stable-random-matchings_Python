@@ -417,11 +417,6 @@ def construct_proposals(N, A, proposeoffset, print_out = False):
         proposals.append({})
         
     for student in range(len(N)):
-        ######## CHANGE TO CODE ERDIL & ERGIN ##########
-        # If a student is not assigned to any school, they would prefer to go to any school more preferred than the outside option
-        # Add these proposals! This avoids come cycles that might cause blockings 
-
-
         for school_got_rejected in N[student][:proposeoffset[student]]:
             if print_out:
                 print(('\tstudent', student, 'is rejected from', school_got_rejected,N[student][:proposeoffset[student]]))
@@ -515,7 +510,7 @@ def improve_allocations(N, A, allocation, proposals, soe, cycle, print_out = Fal
         allocation[school1].remove(student)
         allocation[school2].add(student)
         rank = A[school2][student]
-        proposals[school2][rank].remove(student) # Removes student from their newly assigned school in proposals
+        #proposals[school2][rank].remove(student) # Removes student from their newly assigned school in proposals
 
         if len(proposals[school2][rank]) == 0:
             proposals[school2].pop(rank)
@@ -531,7 +526,7 @@ def improve_allocations(N, A, allocation, proposals, soe, cycle, print_out = Fal
             print('pref_index_old_school', pref_index_old_school)
             print('pref_index_new_school', pref_index_new_school)
 
-        for i in range(pref_index_new_school + 1, pref_index_old_school): # '+1' because we already removed the student from the new school
+        for i in range(pref_index_new_school, pref_index_old_school): # '+1' because we already removed the student from the new school
 
             school3 = N[student][i]
             rank = A[school3][student]

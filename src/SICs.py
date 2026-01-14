@@ -65,7 +65,7 @@ def SIC(MyData: Data, M: np.ndarray, print_out = False):
                 k = len(MyData.pref_index[i]) # Finish for-loop
 
     if print_out:
-        print("Assigned pref (before):", assigned_pref)
+        print("Assigned pref (before):", assigned_pref)       
 
     result = SIC_EE(N, A, Q, M_EE, assigned_pref, print_out)
 
@@ -160,6 +160,11 @@ def SIC_with_mistake_EE(MyData: Data, M: np.ndarray, print_out = False):
 
     if print_out:
         print("Assigned pref (after):", result['optimal_all'])
+        print('\n N:', N, '\n',
+              'A:', A,'\n',
+              'Q:', Q,'\n',
+              'allocation:', M_EE,'\n',
+              'pro_off:', assigned_pref, '\n',)
     
     """
     Contains:
