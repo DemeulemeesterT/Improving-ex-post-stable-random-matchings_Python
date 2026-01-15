@@ -1,0 +1,3 @@
+n_stud,n_schools,alpha,beta,seed,time_limit,#_sol_methods,avg_rank_DA,avg_rank_EE,avg_rank_EE_bug,avg_rank_EADA,n_assigned_DA,n_assigned_EE,n_assigned_EADA,n_stud_impr_EE_DA,avg_rank_impr_EE_DA,median_rank_impr_EE_DA,n_stud_impr_EE_bug_DA,avg_rank_impr_EE_bug_DA,median_rank_impr_EE_bug_DA
+1000,20,0.0,0.0,906691059,10,1,1.203,1.154,1.153,,,,,14,3.5,2.5,16,3.125,2.5
+1000,20,0.0,0.0,413653999,10,1,1.149,1.128,1.131,,,,,8,2.625,2.5,8,2.25,1.5

@@ -113,7 +113,7 @@ def SIC_all_matchings_with_mistake_EE(MyData: Data, A: Assignment, print_out = F
         w_original = A.w_set[M]
 
         # Find SICs
-        M_out = SIC_with_mistake_EE(MyData, M, True)
+        M_out = SIC_with_mistake_EE(MyData, M, print_out)
         
 
         M_set.add(tuple(map(tuple,M_out))) # This is needed because numpy arrays cannot be used as keys in a dictionary

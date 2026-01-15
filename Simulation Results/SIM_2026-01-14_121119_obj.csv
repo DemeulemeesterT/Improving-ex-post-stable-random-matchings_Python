@@ -1,0 +1,2 @@
+n_stud,n_schools,alpha,beta,seed,sol_method,iterations,master objective values
+1000,20,0.0,0.0,906691059,SD_UPON_DA,1,1.1539999999999868
