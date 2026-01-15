@@ -23,7 +23,7 @@ def SIC_all_matchings(MyData: Data, A: Assignment, print_out = False):
         w_original = A.w_set[M]
 
         # Find SICs
-        M_out = SIC(MyData, M, False)
+        M_out = SIC(MyData, M, print_out)
         
 
         M_set.add(tuple(map(tuple,M_out))) # This is needed because numpy arrays cannot be used as keys in a dictionary

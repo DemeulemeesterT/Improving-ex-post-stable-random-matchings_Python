@@ -313,6 +313,7 @@ def SIC_EE(N, A, Q, allocation, pro_off, print_out = False):
 
         best = best_substitudes(pro) # Retain set of students with best rank among proposers, for each school
         graph, soe = construct_digraph(all, best) # Make graph with one node for each school
+        
         obj = DFS(graph)
         if print_out:
             print(('pro_off    :', pro_off)) # Preferences of assigned students
@@ -381,6 +382,8 @@ def SIC_EE_with_mistake_EE(N, A, Q, allocation, pro_off, print_out = False):
 
         best = best_substitudes(pro) # Retain set of students with best rank among proposers, for each school
         graph, soe = construct_digraph(all, best) # Make graph with one node for each school
+        
+        
         obj = DFS(graph)
         if print_out:
             print(('pro_off    :', pro_off)) # Preferences of assigned students
@@ -475,20 +478,25 @@ class DFS:
         if print_out:
             print('DFS()')
         for u in self.V:
-            if (self.color[u] == 0):
+            if (self.color[u] == 0) and (self.cycle is None):
                 self.DFSVisit(u)
 
     def DFSVisit(self, u, print_out = False):
         self.color[u] = 1
         for v in self.G[u]:
+            if self.cycle is not None:
+                return
             if self.color[v] == 0:
                 self.pi[v] = u
                 self.DFSVisit(v)
-            if self.color[v] == 1:
+            elif self.color[v] == 1:
                 # there is a cycle
                 path = [u]
                 while (True):
 ##                    print path
+                    if self.pi[path[-1]] is None:
+                        raise RuntimeError(f"Parent is None while building cycle at node {path[-1]} — likely missing assignment in DFS")
+
                     path.append(self.pi[path[-1]])
                     if path[-1] == v:
                         path.reverse()
