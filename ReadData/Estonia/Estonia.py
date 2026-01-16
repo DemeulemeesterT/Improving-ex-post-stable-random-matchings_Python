@@ -20,7 +20,7 @@ def read_dataEstonia(file_path):
 
     # Determine walking groups
     #tresholds = [1000, 2000, 4000, 7000]
-    tresholds = [4000]
+    tresholds = [2000]
     n_groups = len(tresholds) + 2 # +2 because you have the highest group for siblings
 
     
@@ -42,22 +42,22 @@ def read_dataEstonia(file_path):
                 groups[0].append(student)
                 print("Student, school, sibling", student, school, sibling_bool)
             
-    
-            filtered_values = df.loc[(df["child_id"] == student) & (df["garten_id"] == school), "distance_m"]
+            else: # no sibling, check distance   
+                filtered_values = df.loc[(df["child_id"] == student) & (df["garten_id"] == school), "distance_m"]
 
-            # Check if there is at least one result
-            if not filtered_values.empty:
-                dist = filtered_values.iloc[0]  # Now it's safe
-                #print("Stud, school, dist", student, school, dist)
-                if dist <= tresholds[0]:
-                    groups[1].append(student)
-                else:
-                    for k in range(2, len(tresholds)+1):
-                        if (tresholds[k-1] <= dist) & (dist <= tresholds[k]):
-                            #print("\tTresholds", tresholds[k-1], tresholds[k])
-                            groups[k].append(student)
-                    if dist >= tresholds[-1]:
-                        groups[n_groups-1].append(student)
+                # Check if there is at least one result
+                if not filtered_values.empty:
+                    dist = filtered_values.iloc[0]  # Now it's safe
+                    #print("Stud, school, dist", student, school, dist)
+                    if dist <= tresholds[0]:
+                        groups[1].append(student)
+                    else:
+                        for k in range(2, len(tresholds)+1):
+                            if (tresholds[k-1] <= dist) & (dist <= tresholds[k]):
+                                #print("\tTresholds", tresholds[k-1], tresholds[k])
+                                groups[k].append(student)
+                        if dist >= tresholds[-1]:
+                            groups[n_groups-1].append(student)
 
 
         # Now create tuples from the groups that contain more than 1 student
